@@ -1,0 +1,22 @@
+---
+title: "my first post"
+description: "look at the cute monkey pic!"
+author: "Diana Kim"
+date: "2026-01-28"
+date-modified: "2026-01-28"
+categories: [news, analysis]
+image: "YeajuKim_withAmonkey.jpg"
+---
+
+This is a post with executable code.
+
+```{r}
+1 + 1
+x <- 3
+
+x * 9
+```
+
+haha This can work as my calculator.
+
+Today, we are designing a new blog.
