@@ -14,9 +14,14 @@ This is a post with executable code.
 1 + 1
 x <- 3
 
-x * 9
+y <- x * 9
 ```
 
 haha This can work as my calculator.
 
 Today, we are designing a new blog.
+
+
+```{r}
+x ^ y
+```
