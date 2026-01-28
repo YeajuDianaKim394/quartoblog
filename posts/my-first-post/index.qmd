@@ -8,7 +8,7 @@ categories: [news, analysis]
 image: "YeajuKim_withAmonkey.jpg"
 ---
 
-This is a post with executable code.
+haha This can work as my calculator.
 
 ```{r}
 1 + 1
@@ -17,7 +17,6 @@ x <- 3
 y <- x * 9
 ```
 
-haha This can work as my calculator.
 
 Today, we are designing a new blog.
 
