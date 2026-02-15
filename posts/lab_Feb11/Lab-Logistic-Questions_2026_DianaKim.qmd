@@ -19,7 +19,7 @@ format:
     code-fold: true
     code-overflow: wrap
 engine: knitr
-image: plot-sesviews
+image: "polplot.png"
 ---
 
 -   Assignment requirements:
