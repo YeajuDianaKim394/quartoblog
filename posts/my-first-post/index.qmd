@@ -8,6 +8,8 @@ categories: [news, analysis]
 image: "YeajuKim_withAmonkey.jpg"
 ---
 
+## section 
+
 haha This can work as my calculator.
 
 ```{r}
@@ -17,6 +19,8 @@ x <- 3
 y <- x * 9
 ```
 
+
+## another section
 
 Today, we are designing a new blog.
 

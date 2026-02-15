@@ -11,7 +11,7 @@
     "href": "posts/my-first-post/index.html",
     "title": "my first post",
     "section": "",
-    "text": "This is a post with executable code.\n\n1 + 1\n\n[1] 2\n\nx &lt;- 3\n\nx * 9\n\n[1] 27"
+    "text": "haha This can work as my calculator.\n\n1 + 1\n\n[1] 2\n\nx &lt;- 3\n\ny &lt;- x * 9"
   },
   {
     "objectID": "about.html",
@@ -201,5 +201,19 @@
     "title": "Lab: Logistic Regression",
     "section": "Conclusion",
     "text": "Conclusion\n___ based on the model summary below, and the three figures.\n\n\n\n\nDf\nDeviance\nResid. Df\nResid. Dev\nPr(&gt;Chi)\n\n\n\n\nNULL\nNA\nNA\n2589\n3581.340\nNA\n\n\nage_c\n1\n9.268443\n2588\n3572.072\n0.0023314\n\n\nsex\n1\n12.156624\n2587\n3559.915\n0.0004891\n\n\nsei10_c\n1\n14.119078\n2586\n3545.796\n0.0001716\n\n\npolviews\n6\n63.028441\n2580\n3482.768\n0.0000000\n\n\n\nTable 1\n\n\n\n\n\nFigure 1: Effect of Sex on Satisfaction with Mass Transportation\n\n\n\n\n\n\n\n\n\nFigure 2: Effect of SES on Satisfaction with Mass Transportation\n\n\n\n\n\n\n\n\n\nFigure 3: Effect of Political Views on Satisfaction with Mass Transportation"
+  },
+  {
+    "objectID": "posts/my-first-post/index.html#section",
+    "href": "posts/my-first-post/index.html#section",
+    "title": "my first post",
+    "section": "",
+    "text": "haha This can work as my calculator.\n\n1 + 1\n\n[1] 2\n\nx &lt;- 3\n\ny &lt;- x * 9"
+  },
+  {
+    "objectID": "posts/my-first-post/index.html#another-section",
+    "href": "posts/my-first-post/index.html#another-section",
+    "title": "my first post",
+    "section": "another section",
+    "text": "another section\nToday, we are designing a new blog.\n\nx ^ y\n\n[1] 7.625597e+12"
   }
 ]

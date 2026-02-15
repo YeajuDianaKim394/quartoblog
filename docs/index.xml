@@ -21,7 +21,9 @@
 
 
 
-<p>This is a post with executable code.</p>
+<section id="section" class="level2">
+<h2 class="anchored" data-anchor-id="section">section</h2>
+<p>haha This can work as my calculator.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="dv" style="color: #AD0000;
 background-color: null;
@@ -39,17 +41,29 @@ font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span></span>
 <span id="cb3-2"></span>
-<span id="cb3-3">x <span class="sc" style="color: #5E5E5E;
+<span id="cb3-3">y <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> x <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">9</span></span></code></pre></div></div>
+</div>
+</section>
+<section id="another-section" class="level2">
+<h2 class="anchored" data-anchor-id="another-section">another section</h2>
+<p>Today, we are designing a new blog.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">x <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span> y</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 27</code></pre>
+<pre><code>[1] 7.625597e+12</code></pre>
 </div>
 </div>
 
 
+</section>
 
  ]]></description>
   <category>news</category>
@@ -2872,7 +2886,7 @@ Tests are performed on the log odds ratio scale </code></pre>
 
  ]]></description>
   <guid>https://your-website-url.example.com/posts/lab_Feb11/Lab-Logistic-Questions_2026_DianaKim.html</guid>
-  <pubDate>Sun, 15 Feb 2026 03:10:41 GMT</pubDate>
+  <pubDate>Sun, 15 Feb 2026 03:14:25 GMT</pubDate>
   <media:content url="https://your-website-url.example.com/posts/lab_Feb11/polplot.png" medium="image" type="image/png" height="89" width="144"/>
 </item>
 </channel>
