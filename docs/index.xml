@@ -2886,8 +2886,1797 @@ Tests are performed on the log odds ratio scale </code></pre>
 
  ]]></description>
   <guid>https://your-website-url.example.com/posts/lab_Feb11/Lab-Logistic-Questions_2026_DianaKim.html</guid>
-  <pubDate>Sun, 15 Feb 2026 03:14:25 GMT</pubDate>
+  <pubDate>Fri, 20 Feb 2026 15:55:07 GMT</pubDate>
   <media:content url="https://your-website-url.example.com/posts/lab_Feb11/polplot.png" medium="image" type="image/png" height="89" width="144"/>
+</item>
+<item>
+  <title>PSY 504 2026: Bayes Lab 1 — From Tables to MCMC</title>
+  <link>https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>Consider the following setting: A factory produces coins, each with a different bias <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">. You don’t know which coin you received. You have prior beliefs about which coins the factory is likely to produce — <img src="https://latex.codecogs.com/png.latex?p(%5Ctheta_i)">. You flip the coin <img src="https://latex.codecogs.com/png.latex?N"> times, observe <img src="https://latex.codecogs.com/png.latex?Y"> heads, and use that data to figure out which coin you probably got — <img src="https://latex.codecogs.com/png.latex?p(%5Ctheta_i%20%5Cmid%20%5Ctext%7Bdata%7D)">.</p>
+<p>In Monday’s lecture, you saw a setting like this play out with a table of probabilities:</p>
+<ul>
+<li><p>each row was a different coin (a different <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">), showing what it could produce — <img src="https://latex.codecogs.com/png.latex?p(%5Ctext%7Bdata%7D%20%5Cmid%20%5Ctheta_i)"> — with one column for each possible outcome (0 heads, 1 head, … <img src="https://latex.codecogs.com/png.latex?N"> heads)</p></li>
+<li><p>you then observed <img src="https://latex.codecogs.com/png.latex?Y"> heads out of <img src="https://latex.codecogs.com/png.latex?N"> tosses</p></li>
+<li><p>you fixed the data (the <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bdata%7D%20=%20Y"> column) and scored each coin on how well it explained your observation — that’s the likelihood, <img src="https://latex.codecogs.com/png.latex?p(%5Ctext%7Bdata%7D%20=%20Y%20%5Cmid%20%5Ctheta_i)"></p></li>
+<li><p>then you multiplied each cell of this column by your prior on <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">, and divided by the column sum:</p></li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bp(%5Ctext%7Bdata%7D%20=%20Y%20%5Cmid%20%5Ctheta_i)%20%5Ctimes%20p(%5Ctheta_i)%7D%7B%5Csum_i%20p(%5Ctext%7Bdata%7D%20=%20Y%20%5Cmid%20%5Ctheta_i)%20%5Ctimes%20p(%5Ctheta_i)%7D"></p>
+<ul>
+<li>this is the posterior — you just applied Bayes’ rule!</li>
+</ul>
+<p>In this lab, you’ll do all of this in R — first by hand, then with <code>brms</code>. The entire lab uses coins. But you’ll be using three different methods to obtain your posterior — a table, grid approximation, and MCMC.</p>
+<p><strong><em>A note on how to work through this lab:</em></strong> Throughout this lab, you’ll find that some code is commented out, and some is left for you to write yourself. You can uncomment the commented code to run it (CMD + Shift + C on selected lines). But before doing so, take a moment to think about how you’d write this yourself. What functions would you use? What inputs are needed, etc? Then uncomment the code, and make sure you understand each line / contrast with your approach before moving on. For the blanks marked # Your code here: that’s your turn — write the code, run it, and check that the output makes sense before continuing. Also, make sure to answer the descriptive follow-up questions such as “what does these tell you?”<br>
+<br>
+</p>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyverse)</span>
+<span id="cb1-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#install.packages('brms')</span></span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(brms)</span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidybayes)</span>
+<span id="cb1-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggdist)</span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="part-1-the-lecture-table-in-r" class="level1">
+<h1>Part 1: The lecture table — in R</h1>
+<p>In lecture, we built a table with 5 coins (<img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> = 0.2, 0.4, 0.5, 0.6, 0.8) and <img src="https://latex.codecogs.com/png.latex?N%20=%205"> flips, giving 6 possible outcomes (0 through 5 heads). Let’s recreate it, and then observe <img src="https://latex.codecogs.com/png.latex?Y%20=%203"> heads.</p>
+<section id="section-1-build-the-probability-table" class="level2">
+<h2 class="anchored" data-anchor-id="section-1-build-the-probability-table">Section 1: Build the probability table</h2>
+<p>Use <code>dbinom()</code> to compute the probability of each outcome for each coin. (This is reading <strong>across a row</strong> — <img src="https://latex.codecogs.com/png.latex?p(%5Ctext%7Bdata%7D%20%5Cmid%20%5Ctheta_i)"> with <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> fixed.)</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">## Define our coins</span></span>
+<span id="cb2-2">theta_values <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.4</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span>)</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">## For each theta_i, compute the probability of 0, 1, 2, 3, 4, 5 heads</span></span>
+<span id="cb2-5">prob_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> theta_values) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rowwise</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb2-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">probs =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> theta))</span>
+<span id="cb2-9">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">unnest_wider</span>(probs, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">names_sep =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"_"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename_with</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"heads_"</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">starts_with</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"probs_"</span>))</span>
+<span id="cb2-12"></span>
+<span id="cb2-13">prob_table</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 7
+  theta heads_0 heads_1 heads_2 heads_3 heads_4 heads_5
+  &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+1   0.2 0.328    0.410   0.205   0.0512 0.00640 0.00032
+2   0.4 0.0778   0.259   0.346   0.230  0.0768  0.0102 
+3   0.5 0.0312   0.156   0.312   0.312  0.156   0.0312 
+4   0.6 0.0102   0.0768  0.230   0.346  0.259   0.0778 
+5   0.8 0.00032  0.0064  0.0512  0.205  0.410   0.328  </code></pre>
+</div>
+</div>
+<section id="question-1.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-1.1">Question 1.1</h3>
+<p>Verify that each row sums to 1. What does this tell you?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Your code here: using a similar structure as above, compute row sums, mutate it (and excluding the theta column)</span></span>
+<span id="cb4-2">prob_table_sum <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> prob_table <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rowwise</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">row_sum =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c_across</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">starts_with</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"heads_"</span>))))</span>
+<span id="cb4-5"></span>
+<span id="cb4-6">prob_table_sum</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 8
+# Rowwise: 
+  theta heads_0 heads_1 heads_2 heads_3 heads_4 heads_5 row_sum
+  &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+1   0.2 0.328    0.410   0.205   0.0512 0.00640 0.00032       1
+2   0.4 0.0778   0.259   0.346   0.230  0.0768  0.0102        1
+3   0.5 0.0312   0.156   0.312   0.312  0.156   0.0312        1
+4   0.6 0.0102   0.0768  0.230   0.346  0.259   0.0778        1
+5   0.8 0.00032  0.0064  0.0512  0.205  0.410   0.328         1</code></pre>
+</div>
+</div>
+<p>It shows that the columns in each row contain probability values.</p>
+</section>
+</section>
+<section id="section-2-read-the-table-down-a-column" class="level2">
+<h2 class="anchored" data-anchor-id="section-2-read-the-table-down-a-column">Section 2: Read the table down a column</h2>
+<p>Now fix the data at 3 heads (Y = 3) and read <strong>down the column</strong>. This gives you the likelihood function for Y = 3 — <img src="https://latex.codecogs.com/png.latex?p(%5Ctext%7Bdata%7D%20=%203%20%5Cmid%20%5Ctheta_i)"> — which scores each coin on how well it explains your observation.</p>
+<p>Hint: you used <code>dbinom()</code> in Section 1 across outcomes — now use it across <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> values, fixing the number of heads at 3.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Code">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Code
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">## Score each coin on how well they explain 3 heads out of 5 (Y = 3, N = 5)</span></span>
+<span id="cb6-2">likelihood_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb6-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> theta_values,</span>
+<span id="cb6-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">likelihood =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> theta_values)</span>
+<span id="cb6-5">)</span>
+<span id="cb6-6"></span>
+<span id="cb6-7">likelihood_table</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 2
+  theta likelihood
+  &lt;dbl&gt;      &lt;dbl&gt;
+1   0.2     0.0512
+2   0.4     0.230 
+3   0.5     0.312 
+4   0.6     0.346 
+5   0.8     0.205 </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="question-2.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-2.1">Question 2.1</h3>
+<p>Does the likelihood column sum to 1? Compute it. What does this tell you about the likelihood?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Your code here</span></span>
+<span id="cb8-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(likelihood_table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>likelihood)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1.1445</code></pre>
+</div>
+</div>
+<p>These values together are not probabilities of getting 3 heads.</p>
+</section>
+<section id="question-2.2" class="level3">
+<h3 class="anchored" data-anchor-id="question-2.2">Question 2.2</h3>
+<p>Which <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> has the highest likelihood score? That’s the MLE. Can you call it a probability? Why or why not?</p>
+<p>theta = 0.6 has the highest likelihood score. This is not a probability of getting 3 heads, as the five values don’t sum to 1. The likelihood function is not a probability distribution over theta.</p>
+</section>
+</section>
+<section id="section-3-compute-the-posterior-with-a-flat-prior" class="level2">
+<h2 class="anchored" data-anchor-id="section-3-compute-the-posterior-with-a-flat-prior">Section 3: Compute the posterior with a flat prior</h2>
+<p>Now do what Bayes’ rule does: multiply each likelihood by a prior, then normalize so it sums to 1.</p>
+<p>Start with a flat prior — each <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> is equally plausible before seeing data. You have the <code>likelihood_table</code> from Section 2. Add columns for the prior, the product of prior × likelihood, and the normalized posterior.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Code">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Code
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">posterior_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> likelihood_table <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb10-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb10-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">n</span>(),                          <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># flat prior: each theta_i gets equal weight</span></span>
+<span id="cb10-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior_x_likelihood =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> likelihood,   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># numerator of Bayes' rule</span></span>
+<span id="cb10-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">posterior =</span> prior_x_likelihood <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(prior_x_likelihood)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># normalize</span></span>
+<span id="cb10-6">  )</span>
+<span id="cb10-7"></span>
+<span id="cb10-8">posterior_table</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 5
+  theta likelihood prior prior_x_likelihood posterior
+  &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;              &lt;dbl&gt;     &lt;dbl&gt;
+1   0.2     0.0512   0.2             0.0102    0.0447
+2   0.4     0.230    0.2             0.0461    0.201 
+3   0.5     0.312    0.2             0.0625    0.273 
+4   0.6     0.346    0.2             0.0691    0.302 
+5   0.8     0.205    0.2             0.0410    0.179 </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="question-3.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-3.1">Question 3.1</h3>
+<p>Verify that the posterior column sums to 1. What does this tell you?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Your code here</span></span>
+<span id="cb12-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(posterior_table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>posterior)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1</code></pre>
+</div>
+</div>
+<p>The posterior is a probability distribution over theta!</p>
+</section>
+<section id="question-3.2" class="level3">
+<h3 class="anchored" data-anchor-id="question-3.2">Question 3.2</h3>
+<p>In lecture, we asked: “There’s a ___% chance that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is 0.6.” Fill in the blank using your posterior table. Can you also state: “There’s a ___% chance that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is 0.5 or 0.6”?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Your code here</span></span>
+<span id="cb14-2">posterior_table</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 5
+  theta likelihood prior prior_x_likelihood posterior
+  &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;              &lt;dbl&gt;     &lt;dbl&gt;
+1   0.2     0.0512   0.2             0.0102    0.0447
+2   0.4     0.230    0.2             0.0461    0.201 
+3   0.5     0.312    0.2             0.0625    0.273 
+4   0.6     0.346    0.2             0.0691    0.302 
+5   0.8     0.205    0.2             0.0410    0.179 </code></pre>
+</div>
+</div>
+<p>There’s a 30.2% chance that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is 0.6. And there’s a 57.5% chance that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is 0.5 or 0.6.</p>
+<p>You just did something that the likelihood alone could not do — you made a probability statement about a parameter.</p>
+</section>
+</section>
+<section id="section-4-change-the-prior" class="level2">
+<h2 class="anchored" data-anchor-id="section-4-change-the-prior">Section 4: Change the prior</h2>
+<p>Now use an informative prior — “most coins are roughly fair.” Assume that the bias probabilities are c(0.05, 0.20, 0.50, 0.20, 0.05)</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1">posterior_informative <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> likelihood_table <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb16-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb16-3">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Prior peaked at 0.5, lower at extremes</span></span>
+<span id="cb16-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.20</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.50</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.20</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>),</span>
+<span id="cb16-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior_x_likelihood =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> likelihood,</span>
+<span id="cb16-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">posterior =</span> prior_x_likelihood <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(prior_x_likelihood)</span>
+<span id="cb16-7">  )</span>
+<span id="cb16-8"></span>
+<span id="cb16-9">posterior_informative</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 5
+  theta likelihood prior prior_x_likelihood posterior
+  &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;              &lt;dbl&gt;     &lt;dbl&gt;
+1   0.2     0.0512  0.05            0.00256   0.00901
+2   0.4     0.230   0.2             0.0461    0.162  
+3   0.5     0.312   0.5             0.156     0.550  
+4   0.6     0.346   0.2             0.0691    0.243  
+5   0.8     0.205   0.05            0.0102    0.0360 </code></pre>
+</div>
+</div>
+<section id="question-4.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-4.1">Question 4.1</h3>
+<p>Compare this posterior to the flat-prior posterior. Which <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is most probable now? Did the prior pull the estimate? In which direction?</p>
+<p>This time, theta = 0.5 is the most probable. The prior pulled toward the middle.</p>
+</section>
+<section id="section" class="level3">
+<h3 class="anchored" data-anchor-id="section">4.2</h3>
+<p>Plot both posteriors side by side.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Combine the two posteriors for plotting</span></span>
+<span id="cb18-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(</span>
+<span id="cb18-3">  posterior_table <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior_type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Flat prior"</span>),</span>
+<span id="cb18-4">  posterior_informative <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior_type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Informative prior"</span>)</span>
+<span id="cb18-5">) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb18-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> posterior, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> prior_type)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb18-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_col</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dodge"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb18-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Posterior probability"</span>,</span>
+<span id="cb18-9">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Prior"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb18-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="question-4.3" class="level3">
+<h3 class="anchored" data-anchor-id="question-4.3">Question 4.3</h3>
+<p>The data are the same (3 heads out of 5). Only the prior changed. Why did the posterior shift? When would this matter more — with 5 flips or 500 flips?</p>
+<p>The prior can shift the posterior because it weights the data when generating posteriors. This matters more when sample size is small (e.g., 5 flips).</p>
+</section>
+</section>
+</section>
+<section id="part-2-grid-approximation-finer-resolution" class="level1">
+<h1>Part 2: Grid approximation — finer resolution</h1>
+<p>With only 5 values of <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">, we got a rough picture. What if we tried 1,000 values between 0 and 1? That’s grid approximation — the same logic, just with a much finer grid. Now <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> becomes effectively continuous.</p>
+<section id="section-5-grid-approximation-with-a-flat-prior" class="level2">
+<h2 class="anchored" data-anchor-id="section-5-grid-approximation-with-a-flat-prior">Section 5: Grid approximation with a flat prior</h2>
+<p>Replace the 5 <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> values with <code>seq(0, 1, length.out = 1000)</code> and repeat the same multiply-and-normalize steps from Section 3. Then plot the posterior.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Code">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Code
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">## Define a fine grid of theta values</span></span>
+<span id="cb19-2">grid <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb19-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>)</span>
+<span id="cb19-4">) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb19-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb19-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,                                           <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># flat prior (unnormalized is fine)</span></span>
+<span id="cb19-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">likelihood =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> theta),      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># score each theta</span></span>
+<span id="cb19-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">unstd_posterior =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> likelihood,                 <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># prior × likelihood</span></span>
+<span id="cb19-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">posterior =</span> unstd_posterior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(unstd_posterior)     <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># normalize</span></span>
+<span id="cb19-10">  )</span>
+<span id="cb19-11"></span>
+<span id="cb19-12"><span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">## Plot the posterior</span></span>
+<span id="cb19-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(grid, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> theta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> posterior)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-15">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Posterior probability"</span>,</span>
+<span id="cb19-16">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Posterior: 3 heads out of 5 (Y = 3, N = 5), flat prior"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="question-5.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-5.1">Question 5.1</h3>
+<p>Where is the peak of the posterior? Does this match the MLE from Section 2?</p>
+<p>The peak is around 0.59, which matches the MLE from section 2.</p>
+</section>
+</section>
+<section id="section-6-grid-approximation-with-an-informative-prior" class="level2">
+<h2 class="anchored" data-anchor-id="section-6-grid-approximation-with-an-informative-prior">Section 6: Grid approximation with an informative prior</h2>
+<p>Now replace the flat prior with a Beta(10, 10) distribution — peaked near 0.5, skeptical of extreme values.<br>
+<br>
+<em><strong>Note below:</strong> The likelihood and posterior are on different scales, so we rescale the likelihood to the same height for visual comparison. It’s juat a plotting/visualization trick. The shapes and peaks are what matter here, not the y-axis values.</em></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1">grid_informative <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb20-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>)</span>
+<span id="cb20-3">) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb20-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb20-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbeta</span>(theta, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>),                        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># peaked near 0.5</span></span>
+<span id="cb20-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">likelihood =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> theta),</span>
+<span id="cb20-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">unstd_posterior =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> likelihood,</span>
+<span id="cb20-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">posterior =</span> unstd_posterior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(unstd_posterior)</span>
+<span id="cb20-9">  )</span>
+<span id="cb20-10"></span>
+<span id="cb20-11"><span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">## Plot prior, likelihood (rescaled), and posterior together</span></span>
+<span id="cb20-12">grid_informative <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb20-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb20-14">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">likelihood_scaled =</span> likelihood <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(likelihood) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(posterior)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># rescale for visibility</span></span>
+<span id="cb20-15">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb20-16">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> theta)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> posterior), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"blue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(prior)), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dashed"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-19">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> likelihood_scaled), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gray50"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dotted"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-20">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density (rescaled)"</span>,</span>
+<span id="cb20-21">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Blue = Posterior, Red = Prior, Gray = Likelihood"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-22">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="question-6.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-6.1">Question 6.1</h3>
+<p>The posterior (blue) sits between the prior (red) and the likelihood (gray). Why? What would happen to the posterior if you had <img src="https://latex.codecogs.com/png.latex?Y%20=%20300"> heads out of <img src="https://latex.codecogs.com/png.latex?N%20=%20500"> instead of <img src="https://latex.codecogs.com/png.latex?Y%20=%203"> out of <img src="https://latex.codecogs.com/png.latex?N%20=%205">?</p>
+<p>The posterior sits between the other two because we get the posterior by multiplying prior and likelihood. If the sample size greatly increases, the prior will matter less and the posterior distribution will be closer to the likelihood.</p>
+</section>
+</section>
+<section id="section-7-watch-the-prior-wash-out" class="level2">
+<h2 class="anchored" data-anchor-id="section-7-watch-the-prior-wash-out">Section 7: Watch the prior wash out</h2>
+<p>Increase the sample size while keeping the same proportion of heads (60%).</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Same proportion (60% heads), increasing sample sizes</span></span>
+<span id="cb21-2">sample_sizes <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>)</span>
+<span id="cb21-3">heads_observed <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> sample_sizes)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Y = 3, 12, 30, 120</span></span>
+<span id="cb21-4"></span>
+<span id="cb21-5">grid_by_n <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">map2_dfr</span>(sample_sizes, heads_observed, <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span>(n, k) {</span>
+<span id="cb21-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb21-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>),</span>
+<span id="cb21-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n =</span> n,</span>
+<span id="cb21-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbeta</span>(theta, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>),</span>
+<span id="cb21-10">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">likelihood =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dbinom</span>(k, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> n, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prob =</span> theta),</span>
+<span id="cb21-11">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">unstd_posterior =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> likelihood,</span>
+<span id="cb21-12">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">posterior =</span> unstd_posterior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(unstd_posterior)</span>
+<span id="cb21-13">  )</span>
+<span id="cb21-14">})</span>
+<span id="cb21-15"></span>
+<span id="cb21-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(grid_by_n, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> theta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> posterior)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb21-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"blue"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb21-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> prior <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(prior)), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dashed"</span>,</span>
+<span id="cb21-19">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> grid_by_n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb21-20">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"n = "</span>, n), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">scales =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"free_y"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb21-21">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Posterior probability"</span>,</span>
+<span id="cb21-22">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Same prior, more data → posterior concentrates"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb21-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="question-7.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-7.1">Question 7.1</h3>
+<p>What happens to the posterior as n increases? Does the prior still matter at n = 200? This is what the “Three ingredients” slide was about: “With lots of data — likelihood dominates.”</p>
+<p>As n increases, the posterior centers closer to the likelihood and gets narrower.</p>
+</section>
+</section>
+</section>
+<section id="part-3-let-brms-do-it" class="level1">
+<h1>Part 3: Let brms do it</h1>
+<p>Grid approximation works beautifully for one parameter. But your regression models have <img src="https://latex.codecogs.com/png.latex?%5Cbeta_0">, <img src="https://latex.codecogs.com/png.latex?%5Cbeta_1">, and <img src="https://latex.codecogs.com/png.latex?%5Csigma"> — three parameters. A 3D grid with 1000 points per dimension means 1,000,000,000 cells. That’s why we need MCMC. Let’s fit the same coin problem with <code>brms</code> and see that it gives us the same answer.</p>
+<section id="section-8-set-up-the-coin-data" class="level2">
+<h2 class="anchored" data-anchor-id="section-8-set-up-the-coin-data">Section 8: Set up the coin data</h2>
+<p><code>brms</code> needs data in a data frame. For a binomial model, we tell it how many successes and how many trials.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Our coin data: Y = 3 heads out of N = 5 flips</span></span>
+<span id="cb22-2">coin_data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(</span>
+<span id="cb22-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">heads =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>,</span>
+<span id="cb22-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">trials =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span></span>
+<span id="cb22-5">)</span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="section-9-fit-with-brms-flat-prior" class="level2">
+<h2 class="anchored" data-anchor-id="section-9-fit-with-brms-flat-prior">Section 9: Fit with brms — flat prior</h2>
+<p>We’ll use <code>family = binomial</code> and a very wide prior on the intercept (which is on the logit scale). A wide prior on the logit scale approximates a flat prior on the probability scale.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1">fit_flat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">brm</span>(</span>
+<span id="cb23-2">  heads <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">trials</span>(trials) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,     <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># intercept-only binomial model</span></span>
+<span id="cb23-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">binomial</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"logit"</span>),</span>
+<span id="cb23-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> coin_data,</span>
+<span id="cb23-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">prior</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">normal</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">class =</span> Intercept),  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># wide prior ≈ flat on prob scale</span></span>
+<span id="cb23-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">504</span>,</span>
+<span id="cb23-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">iter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">warmup =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">chains =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span></span>
+<span id="cb23-8">)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit_flat)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> Family: binomial 
+  Links: mu = logit 
+Formula: heads | trials(trials) ~ 1 
+   Data: coin_data (Number of observations: 1) 
+  Draws: 4 chains, each with iter = 4000; warmup = 1000; thin = 1;
+         total post-warmup draws = 12000
+
+Regression Coefficients:
+          Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+Intercept     0.47      1.04    -1.51     2.65 1.00     4087     4536
+
+Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+and Tail_ESS are effective sample size measures, and Rhat is the potential
+scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+</div>
+</div>
+<section id="question-9.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-9.1">Question 9.1</h3>
+<p>The intercept is on the logit scale. To convert to <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> (probability scale), apply the inverse logit: <code>plogis()</code>. What’s the posterior mean of <img src="https://latex.codecogs.com/png.latex?%5Ctheta">? Is it closer to 0.5 or 0.6? Why?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Extract posterior draws of the intercept</span></span>
+<span id="cb26-2">draws_flat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_flat) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb26-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plogis</span>(b_Intercept))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># convert logit → probability</span></span>
+<span id="cb26-4"></span>
+<span id="cb26-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Posterior mean of theta</span></span>
+<span id="cb26-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.5938141</code></pre>
+</div>
+</div>
+<p>It’s closer to 0.6 because the prior was very wide and almost flat.</p>
+</section>
+<section id="question-9.2" class="level3">
+<h3 class="anchored" data-anchor-id="question-9.2">Question 9.2</h3>
+<p>How does this compare to your grid approximation result from Section 5?</p>
+<p>The peak seems quite similar to that from section 5!</p>
+</section>
+</section>
+<section id="section-10-plot-the-posterior-from-mcmc-draws" class="level2">
+<h2 class="anchored" data-anchor-id="section-10-plot-the-posterior-from-mcmc-draws">Section 10: Plot the posterior from MCMC draws</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(draws_flat, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> theta)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb28-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_histogram</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">after_stat</span>(density)), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>,</span>
+<span id="cb28-3">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.7</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb28-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density"</span>,</span>
+<span id="cb28-5">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"MCMC posterior: 3 heads out of 5 (Y = 3, N = 5), approximately flat prior"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb28-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="question-10.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-10.1">Question 10.1</h3>
+<p>This histogram is made from 12,000 draws (4 chains × 3000 post-warmup). Each draw is a value of <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> sampled from the posterior. The histogram IS the posterior. Compare the shape to your grid approximation plot from Section 5 — how does the shape compare to your grid approximation plot from Section 5? What’s similar? What’s different?</p>
+<p>The overall shape is similar.. but here the peak is more leaning towards 1?</p>
+</section>
+</section>
+<section id="section-11-fit-with-brms-informative-prior" class="level2">
+<h2 class="anchored" data-anchor-id="section-11-fit-with-brms-informative-prior">Section 11: Fit with brms — informative prior</h2>
+<p>Now use a prior that says “most coins are roughly fair.” On the logit scale, <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20=%200.5"> corresponds to logit = 0. A Normal(0, 0.5) prior on the logit scale concentrates <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> near 0.5.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1">fit_informative <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">brm</span>(</span>
+<span id="cb29-2">  heads <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">trials</span>(trials) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb29-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">binomial</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"logit"</span>),</span>
+<span id="cb29-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> coin_data,</span>
+<span id="cb29-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">prior</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">normal</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">class =</span> Intercept),  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># informative: most coins near fair</span></span>
+<span id="cb29-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">504</span>,</span>
+<span id="cb29-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">iter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">warmup =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">chains =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span></span>
+<span id="cb29-8">)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1">draws_informative <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_informative) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb30-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">theta =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plogis</span>(b_Intercept))</span>
+<span id="cb30-3"></span>
+<span id="cb30-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(draws_informative<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.5196313</code></pre>
+</div>
+</div>
+<section id="question-11.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-11.1">Question 11.1</h3>
+<p>The posterior mean shifted compared to the flat prior. In which direction? Why? Does this match what happened in Section 4 when you changed the prior by hand?</p>
+<p>It shifted towards 0.5 because the sample size is very small and the prior mattered a lot in this case. I think it matches with what happened in section 4, where the prior pulled the posterior as well.</p>
+</section>
+</section>
+<section id="section-12-overlay-both-posteriors" class="level2">
+<h2 class="anchored" data-anchor-id="section-12-overlay-both-posteriors">Section 12: Overlay both posteriors</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(</span>
+<span id="cb32-2">  draws_flat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(theta) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior_type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Wide (≈ flat)"</span>),</span>
+<span id="cb32-3">  draws_informative <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(theta) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior_type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Informative"</span>)</span>
+<span id="cb32-4">) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb32-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> theta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> prior_type)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb32-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_density</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb32-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(theta), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density"</span>,</span>
+<span id="cb32-8">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Prior"</span>,</span>
+<span id="cb32-9">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Same data, different priors → different posteriors"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb32-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Dropping 'draws_df' class as required metadata was removed.
+Warning: Dropping 'draws_df' class as required metadata was removed.</code></pre>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="question-12.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-12.1">Question 12.1</h3>
+<p>With only 5 flips, the prior matters. What would you expect if you had 500 flips? (You can test this: change the data to <code>heads = 300, trials = 500</code> and refit both models.)</p>
+<p>The plots now overlap!! The prior no longer matters here.</p>
+</section>
+</section>
+<section id="section-13-fill-in-the-blank" class="level2">
+<h2 class="anchored" data-anchor-id="section-13-fill-in-the-blank">Section 13: Fill in the blank</h2>
+<p>Using your posterior draws, make the probability statements that MLE cannot. Hint: what fraction of your draws satisfy a given condition? Think about what <code>mean()</code> returns when applied to a logical vector.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Code">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Code
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># "What's the probability that theta &gt; 0.5?"</span></span>
+<span id="cb34-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.6730833</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># "What's the probability that theta is between 0.4 and 0.8?"</span></span>
+<span id="cb36-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.4</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.6331667</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>There’s a 67.3% chance that theta is larger than 0.5. And there’s a 63.3% chance that theta lies between 0.4 and 0.8.</p>
+<section id="question-13.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-13.1">Question 13.1</h3>
+<p>In lecture, the blank was: “There’s a ___% chance that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is 0.6.” With continuous posterior draws, we can’t ask about a single point. Instead, we ask about intervals. Compute: “There’s a 17.3% chance that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> is between 0.55 and 0.65.” How does this compare to the grid approximation posterior at <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20=%200.6">?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.55</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.65</span>) </span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.17375</code></pre>
+</div>
+</div>
+<p>The grid approximation posterior just shows how high the posterior is at the point where theta = 0.6. The 17.3% chance here is an area under the posterior curve.</p>
+</section>
+</section>
+<section id="section-14-credible-intervals" class="level2">
+<h2 class="anchored" data-anchor-id="section-14-credible-intervals">Section 14: Credible intervals</h2>
+<p>The 95% credible interval is the central 95% of the posterior draws. This has the interpretation that frequentist confidence intervals don’t: “There’s a 95% probability that <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> lies within this interval.”</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 95% credible interval</span></span>
+<span id="cb40-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(draws_flat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>theta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">probs =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.025</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.975</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>     2.5%     97.5% 
+0.1806043 0.9342980 </code></pre>
+</div>
+</div>
+<section id="question-14.1" class="level3">
+<h3 class="anchored" data-anchor-id="question-14.1">Question 14.1</h3>
+<p>Is <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20=%200.5"> inside the 95% credible interval? What about <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20=%200.2">? What does this tell you?</p>
+<p>Both theta = 0.5 and theta = 0.2 are inside the interval. This posterior is very wide and include various values.</p>
+</section>
+</section>
+</section>
+<section id="wrapping-up" class="level1">
+<h1>Wrapping up</h1>
+<p>You just solved the same problem three ways:</p>
+<ol type="1">
+<li><strong>By hand</strong> (5 <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> values, a table, multiply and normalize)</li>
+<li><strong>Grid approximation</strong> (1,000 <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> values, same logic, finer resolution)</li>
+<li><strong>MCMC via brms</strong> (12,000 draws from the posterior, no grid needed)</li>
+</ol>
+<p>All three gave you the same answer. The first two don’t scale to real models with many parameters. The third does. That’s why we use <code>brms</code>.</p>
+<section id="final-reflection" class="level3">
+<h3 class="anchored" data-anchor-id="final-reflection">Final reflection</h3>
+<p>In your own words, explain the connection between the posterior table from Section 3 and the histogram from Section 10. What’s the same? What’s different?</p>
+<p>The prior was flat in both, and their peaks for theta are at similar points. However, the histogtam shows more continuous change in posteriors over thetas. The table indicates exact probabilities while the histogram shows interval probabilities.</p>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<p>Kurz, A. S. (2025). <em>Statistical rethinking with brms, ggplot2, and the tidyverse: Second edition</em> (Version 1.2.0). <a href="https://bookdown.org/content/4857/" class="uri">https://bookdown.org/content/4857/</a></p>
+<p>McElreath, R. (2020). <em>Statistical rethinking: A Bayesian course with examples in R and Stan</em> (Second Edition). CRC Press.</p>
+</section>
+<section id="session-information" class="level2">
+<h2 class="anchored" data-anchor-id="session-information">Session information</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sessionInfo</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.3.3 (2024-02-29 ucrt)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+
+
+locale:
+[1] LC_COLLATE=Korean_Korea.utf8  LC_CTYPE=Korean_Korea.utf8   
+[3] LC_MONETARY=Korean_Korea.utf8 LC_NUMERIC=C                 
+[5] LC_TIME=Korean_Korea.utf8    
+
+time zone: America/New_York
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] ggdist_3.3.3    tidybayes_3.0.7 brms_2.22.0     Rcpp_1.0.14    
+ [5] lubridate_1.9.4 forcats_1.0.0   stringr_1.6.0   dplyr_1.1.4    
+ [9] purrr_1.0.2     readr_2.1.5     tidyr_1.3.1     tibble_3.2.1   
+[13] ggplot2_4.0.0   tidyverse_2.0.0
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.2.1     svUnit_1.0.8         farver_2.1.1        
+ [4] loo_2.9.0            S7_0.2.0             fastmap_1.2.0       
+ [7] TH.data_1.1-4        tensorA_0.36.2.1     digest_0.6.35       
+[10] estimability_1.5.1   timechange_0.3.0     lifecycle_1.0.5     
+[13] StanHeaders_2.32.10  processx_3.8.6       survival_3.5-8      
+[16] magrittr_2.0.3       posterior_1.6.1      compiler_4.3.3      
+[19] rlang_1.1.3          tools_4.3.3          yaml_2.3.10         
+[22] knitr_1.50           labeling_0.4.3       bridgesampling_1.2-1
+[25] htmlwidgets_1.6.4    pkgbuild_1.4.8       curl_6.2.2          
+[28] plyr_1.8.9           RColorBrewer_1.1-3   multcomp_1.4-28     
+[31] abind_1.4-8          withr_3.0.2          grid_4.3.3          
+[34] stats4_4.3.3         xtable_1.8-4         colorspace_2.1-0    
+[37] inline_0.3.21        emmeans_2.0.0        scales_1.4.0        
+[40] MASS_7.3-60.0.1      cli_3.6.2            mvtnorm_1.3-3       
+[43] rmarkdown_2.30       generics_0.1.4       RcppParallel_5.1.10 
+[46] rstudioapi_0.17.1    reshape2_1.4.4       tzdb_0.4.0          
+[49] rstan_2.32.7         splines_4.3.3        bayesplot_1.15.0    
+[52] parallel_4.3.3       matrixStats_1.5.0    vctrs_0.6.5         
+[55] V8_8.0.1             Matrix_1.6-5         sandwich_3.1-1      
+[58] jsonlite_2.0.0       callr_3.7.6          hms_1.1.3           
+[61] arrayhelpers_1.1-0   glue_1.7.0           ps_1.9.0            
+[64] codetools_0.2-19     distributional_0.6.0 stringi_1.8.7       
+[67] gtable_0.3.6         QuickJSR_1.7.0       pillar_1.11.1       
+[70] htmltools_0.5.8.1    Brobdingnag_1.2-9    R6_2.6.1            
+[73] evaluate_1.0.5       lattice_0.22-5       backports_1.4.1     
+[76] rstantools_2.6.0     coda_0.19-4.1        gridExtra_2.3       
+[79] nlme_3.1-164         checkmate_2.3.2      xfun_0.52           
+[82] zoo_1.8-13           pkgconfig_2.0.3     </code></pre>
+</div>
+</div>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <guid>https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim.html</guid>
+  <pubDate>Fri, 20 Feb 2026 15:55:07 GMT</pubDate>
 </item>
 </channel>
 </rss>

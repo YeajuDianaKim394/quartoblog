@@ -35,11 +35,6 @@ library(tidyverse)
 library(brms)
 library(tidybayes)
 library(ggdist)
-
-if (!requireNamespace("remotes")) {
-  install.packages("remotes")
-}
-remotes::install_github("paul-buerkner/brms")
 ```
 
 # Part 1: The lecture table — in R
@@ -72,11 +67,14 @@ Verify that each row sums to 1. What does this tell you?
 
 ```{r}
 # Your code here: using a similar structure as above, compute row sums, mutate it (and excluding the theta column)
-prob_table_sum <- prob_table %%
-  mutate(sum = heads_0 + heads_1)
+prob_table_sum <- prob_table %>%
+  rowwise() %>%
+  mutate(row_sum = sum(c_across(starts_with("heads_"))))
 
 prob_table_sum
 ```
+
+It shows that the columns in each row contain probability values.
 
 ## Section 2: Read the table down a column
 
@@ -102,11 +100,16 @@ Does the likelihood column sum to 1? Compute it. What does this tell you about t
 
 ```{r}
 # Your code here
+sum(likelihood_table$likelihood)
 ```
+
+These values together are not probabilities of getting 3 heads.
 
 ### Question 2.2
 
 Which $\theta_i$ has the highest likelihood score? That's the MLE. Can you call it a probability? Why or why not?
+
+theta = 0.6 has the highest likelihood score. This is not a probability of getting 3 heads, as the five values don't sum to 1. The likelihood function is not a probability distribution over theta.
 
 ## Section 3: Compute the posterior with a flat prior
 
@@ -133,7 +136,10 @@ Verify that the posterior column sums to 1. What does this tell you?
 
 ```{r}
 # Your code here
+sum(posterior_table$posterior)
 ```
+
+The posterior is a probability distribution over theta!
 
 ### Question 3.2
 
@@ -141,7 +147,10 @@ In lecture, we asked: "There's a \_\_\_% chance that $\theta$ is 0.6." Fill in t
 
 ```{r}
 # Your code here
+posterior_table
 ```
+
+There's a 30.2% chance that $\theta$ is 0.6. And there's a 57.5% chance that $\theta$ is 0.5 or 0.6.
 
 You just did something that the likelihood alone could not do — you made a probability statement about a parameter.
 
@@ -165,6 +174,8 @@ posterior_informative
 
 Compare this posterior to the flat-prior posterior. Which $\theta$ is most probable now? Did the prior pull the estimate? In which direction?
 
+This time, theta = 0.5 is the most probable. The prior pulled toward the middle.
+
 ### 4.2
 
 Plot both posteriors side by side.
@@ -185,6 +196,8 @@ bind_rows(
 ### Question 4.3
 
 The data are the same (3 heads out of 5). Only the prior changed. Why did the posterior shift? When would this matter more — with 5 flips or 500 flips?
+
+The prior can shift the posterior because it weights the data when generating posteriors. This matters more when sample size is small (e.g., 5 flips).
 
 # Part 2: Grid approximation — finer resolution
 
@@ -219,6 +232,8 @@ ggplot(grid, aes(x = theta, y = posterior)) +
 ### Question 5.1
 
 Where is the peak of the posterior? Does this match the MLE from Section 2?
+
+The peak is around 0.59, which matches the MLE from section 2.
 
 ## Section 6: Grid approximation with an informative prior
 
@@ -255,6 +270,8 @@ grid_informative %>%
 
 The posterior (blue) sits between the prior (red) and the likelihood (gray). Why? What would happen to the posterior if you had $Y = 300$ heads out of $N = 500$ instead of $Y = 3$ out of $N = 5$?
 
+The posterior sits between the other two because we get the posterior by multiplying prior and likelihood. If the sample size greatly increases, the prior will matter less and the posterior distribution will be closer to the likelihood.
+
 ## Section 7: Watch the prior wash out
 
 Increase the sample size while keeping the same proportion of heads (60%).
@@ -289,9 +306,11 @@ ggplot(grid_by_n, aes(x = theta, y = posterior)) +
 
 What happens to the posterior as n increases? Does the prior still matter at n = 200? This is what the "Three ingredients" slide was about: "With lots of data — likelihood dominates."
 
+As n increases, the posterior centers closer to the likelihood and gets narrower.
+
 # Part 3: Let brms do it
 
-Grid approximation works beautifully for one parameter. But your regression models have $\beta_0$, $\beta_1$, and $\sigma$ — three parameters. A 3D grid with 1000 points per dimension means \_\_\_\_\_\_\_(fill in the blank) cells. That's why we need MCMC. Let's fit the same coin problem with `brms` and see that it gives us the same answer.
+Grid approximation works beautifully for one parameter. But your regression models have $\beta_0$, $\beta_1$, and $\sigma$ — three parameters. A 3D grid with 1000 points per dimension means 1,000,000,000 cells. That's why we need MCMC. Let's fit the same coin problem with `brms` and see that it gives us the same answer.
 
 ## Section 8: Set up the coin data
 
@@ -329,32 +348,38 @@ summary(fit_flat)
 The intercept is on the logit scale. To convert to $\theta$ (probability scale), apply the inverse logit: `plogis()`. What's the posterior mean of $\theta$? Is it closer to 0.5 or 0.6? Why?
 
 ```{r}
-# # Extract posterior draws of the intercept
-# draws_flat <- as_draws_df(fit_flat) %>%
-#   mutate(theta = plogis(b_Intercept))  # convert logit → probability
-# 
-# # Posterior mean of theta
-# mean(draws_flat$theta)
+# Extract posterior draws of the intercept
+draws_flat <- as_draws_df(fit_flat) %>%
+  mutate(theta = plogis(b_Intercept))  # convert logit → probability
+
+# Posterior mean of theta
+mean(draws_flat$theta)
 ```
+
+It's closer to 0.6 because the prior was very wide and almost flat.
 
 ### Question 9.2
 
 How does this compare to your grid approximation result from Section 5?
 
+The peak seems quite similar to that from section 5!
+
 ## Section 10: Plot the posterior from MCMC draws
 
 ```{r}
-# ggplot(draws_flat, aes(x = theta)) +
-#   geom_histogram(aes(y = after_stat(density)), bins = 50,
-#                  fill = "steelblue", alpha = 0.7) +
-#   labs(x = expression(theta), y = "Density",
-#        title = "MCMC posterior: 3 heads out of 5 (Y = 3, N = 5), approximately flat prior") +
-#   theme_minimal()
+ggplot(draws_flat, aes(x = theta)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50,
+                 fill = "steelblue", alpha = 0.7) +
+  labs(x = expression(theta), y = "Density",
+       title = "MCMC posterior: 3 heads out of 5 (Y = 3, N = 5), approximately flat prior") +
+  theme_minimal()
 ```
 
 ### Question 10.1
 
 This histogram is made from 12,000 draws (4 chains × 3000 post-warmup). Each draw is a value of $\theta$ sampled from the posterior. The histogram IS the posterior. Compare the shape to your grid approximation plot from Section 5 — how does the shape compare to your grid approximation plot from Section 5? What's similar? What's different?
+
+The overall shape is similar.. but here the peak is more leaning towards 1?
 
 ## Section 11: Fit with brms — informative prior
 
@@ -382,6 +407,8 @@ mean(draws_informative$theta)
 
 The posterior mean shifted compared to the flat prior. In which direction? Why? Does this match what happened in Section 4 when you changed the prior by hand?
 
+It shifted towards 0.5 because the sample size is very small and the prior mattered a lot in this case. I think it matches with what happened in section 4, where the prior pulled the posterior as well.
+
 ## Section 12: Overlay both posteriors
 
 ```{r}
@@ -401,6 +428,8 @@ bind_rows(
 
 With only 5 flips, the prior matters. What would you expect if you had 500 flips? (You can test this: change the data to `heads = 300, trials = 500` and refit both models.)
 
+The plots now overlap!! The prior no longer matters here.
+
 ## Section 13: Fill in the blank
 
 Using your posterior draws, make the probability statements that MLE cannot. Hint: what fraction of your draws satisfy a given condition? Think about what `mean()` returns when applied to a logical vector.
@@ -415,22 +444,32 @@ mean(draws_flat$theta > 0.4 & draws_flat$theta < 0.8)
 ```
 :::
 
+There's a 67.3% chance that theta is larger than 0.5. And there's a 63.3% chance that theta lies between 0.4 and 0.8.
+
 ### Question 13.1
 
-In lecture, the blank was: "There's a \_\_\_% chance that $\theta$ is 0.6." With continuous posterior draws, we can't ask about a single point. Instead, we ask about intervals. Compute: "There's a \_\_\_% chance that $\theta$ is between 0.55 and 0.65." How does this compare to the grid approximation posterior at $\theta = 0.6$?
+In lecture, the blank was: "There's a \_\_\_% chance that $\theta$ is 0.6." With continuous posterior draws, we can't ask about a single point. Instead, we ask about intervals. Compute: "There's a 17.3% chance that $\theta$ is between 0.55 and 0.65." How does this compare to the grid approximation posterior at $\theta = 0.6$?
+
+```{r}
+mean(draws_flat$theta > 0.55 & draws_flat$theta < 0.65) 
+```
+
+The grid approximation posterior just shows how high the posterior is at the point where theta = 0.6. The 17.3% chance here is an area under the posterior curve.
 
 ## Section 14: Credible intervals
 
 The 95% credible interval is the central 95% of the posterior draws. This has the interpretation that frequentist confidence intervals don't: "There's a 95% probability that $\theta$ lies within this interval."
 
 ```{r}
-# # 95% credible interval
-# quantile(draws_flat$theta, probs = c(0.025, 0.975))
+# 95% credible interval
+quantile(draws_flat$theta, probs = c(0.025, 0.975))
 ```
 
 ### Question 14.1
 
 Is $\theta = 0.5$ inside the 95% credible interval? What about $\theta = 0.2$? What does this tell you?
+
+Both theta = 0.5 and theta = 0.2 are inside the interval. This posterior is very wide and include various values.
 
 # Wrapping up
 
@@ -445,6 +484,8 @@ All three gave you the same answer. The first two don't scale to real models wit
 ### Final reflection
 
 In your own words, explain the connection between the posterior table from Section 3 and the histogram from Section 10. What's the same? What's different?
+
+The prior was flat in both, and their peaks for theta are at similar points. However, the histogtam shows more continuous change in posteriors over thetas. The table indicates exact probabilities while the histogram shows interval probabilities.
 
 ## References
 
