@@ -639,7 +639,9 @@ Use `ggemmeans()` from the `ggeffects` package to plot predicted probabilities a
 :::
 
 ```{r}
+m2_emmeans <- ggemmeans(m2, terms = c("Age[all]", "Gender"))
 
+plot(m2_emmeans)
 ```
 
 ------------------------------------------------------------------------
@@ -659,11 +661,28 @@ Use the Brant test to check this assumption. State your conclusion.
 ```{r}
 #| code-fold: false
 m2_polr <- polr(Rank ~ Gender + Age, data = gb)
+brant.test(m2_polr)
 ```
+
+All p values are not significant, so the assumption appears to hold.
 
 ### Question 9.2: Surrogate residuals {.unnumbered}
 
 Use the `sure` package to create a QQ plot of surrogate residuals. Does the latent normality assumption appear to hold?
+
+It looks like a straight line, which means that the latent normality assumption holds.
+
+```{r}
+?sure
+library(sure)
+residuals <- resids(m2, method = "latent")
+class(residuals)
+#sure::autoplot(residuals)   ## this doesn't work??
+
+#dev.new()
+qqnorm(residuals)
+#qqline(residuals, col = "red", lwd = 2)
+```
 
 ------------------------------------------------------------------------
 
@@ -679,9 +698,19 @@ Write a **1-paragraph results section** for your final model. Your paragraph mus
 -   At least one key coefficient reported as an odds ratio with a confidence interval
 -   At least one marginal effect translated into probability terms
 
-::: {.callout-warning collapse="true" title="Example write-up"}
-*We used a cumulative logit model (proportional odds) to predict technical rank (1st, 2nd, 3rd) from gender and age (N = \[n\]). A Brant test supported the proportional odds assumption (χ² = \[value\], p = \[value\]). Gender was \[not\] a significant predictor of rank (OR = \[value\], 95% CI \[\[lower\], \[upper\]\], p = \[value\]). Each additional year of age was associated with \[an increase/decrease\] in the odds of achieving a better rank (OR = \[value\], 95% CI \[\[lower\], \[upper\]\]). In terms of predicted probabilities, switching from female to male \[increased/decreased\] the probability of achieving rank 1 by approximately \[X\] percentage points.*
-:::
+```{r}
+modelsummary(m2)
+summary(m2)
+coef(m2)
+exp(coef(m2))
+
+confint.default(m2)
+exp(confint.default(m2))
+```
+
+We used a cumulative logit model (proportional odds) to predict technical rank (1st, 2nd, 3rd) from gender and age (N = 309). A Brant test supported the proportional odds assumption (χ² = 0.367, p = 0.83). Gender was not a significant predictor of rank (OR = 0.826, 95% CI \[0.55, 1.25\], p = 0.365). Each additional year of age was associated with a decrease in the odds of achieving a better rank (OR = 1.001, 95% CI \[0.99, 1.02\]). In terms of predicted probabilities, switching from female to male decreased the probability of achieving rank 1 by approximately 4.2 percentage points.
+
+#Age also not significant??
 
 ------------------------------------------------------------------------
 
@@ -692,3 +721,8 @@ Write a **1-paragraph results section** for your final model. Your paragraph mus
 Refit Model 2 using a probit link: `clm(Rank ~ Gender + Age, data = gb, link = "probit")`.
 
 Compare the coefficients to the logit version. Are the numbers different? Are the substantive conclusions different? In 2-3 sentences, explain why the numbers differ but the story stays the same.
+
+```{r}
+m2_probit <- clm(Rank ~ Gender + Age, data = gb, link = "probit")
+summary(m2_probit)
+```

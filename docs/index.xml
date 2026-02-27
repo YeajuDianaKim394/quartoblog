@@ -10,7 +10,3206 @@
 <atom:link href="https://your-website-url.example.com/index.xml" rel="self" type="application/rss+xml"/>
 <description>A blog built with Quarto</description>
 <generator>quarto-1.8.24</generator>
-<lastBuildDate>Wed, 28 Jan 2026 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 27 Feb 2026 05:00:00 GMT</lastBuildDate>
+<item>
+  <title>Lab 3: Ordinal Regression</title>
+  <dc:creator>Yeaju Diana Kim</dc:creator>
+  <link>https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal regression_DianaKim.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="instructions" class="level2">
+<h2 class="anchored" data-anchor-id="instructions">Instructions</h2>
+<ul>
+<li>If you are fitting a model, display the model output in a neatly formatted table. (The <code>tidy()</code> and <code>kable()</code> functions can help!)</li>
+<li>If you are creating a plot, use clear labels for all axes, titles, etc.</li>
+<li>Commit and push your work to GitHub regularly, at least after each exercise. Write short and informative commit messages.</li>
+<li>When you’re done, we should be able to knit the final version of the QMD in your GitHub as an HTML.</li>
+</ul>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyverse)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ordinal)</span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(marginaleffects)</span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(emmeans)</span>
+<span id="cb1-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(car)</span>
+<span id="cb1-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggeffects)</span>
+<span id="cb1-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(knitr)</span>
+<span id="cb1-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#install.packages('modelsummary')</span></span>
+<span id="cb1-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(modelsummary)</span>
+<span id="cb1-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(patchwork)</span>
+<span id="cb1-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#install.packages('gofcat')</span></span>
+<span id="cb1-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(gofcat)</span>
+<span id="cb1-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(sure)</span>
+<span id="cb1-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(MASS)</span>
+<span id="cb1-15"></span>
+<span id="cb1-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">options</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">scipen =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">999</span>)</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="part-1-understanding-thresholds-through-simulation" class="level1">
+<h1>Part 1: Understanding Thresholds Through Simulation</h1>
+<section id="the-setup" class="level2">
+<h2 class="anchored" data-anchor-id="the-setup">The Setup</h2>
+<p>A university has 10 instructors who are <strong>cross-listed</strong> — they each teach one course in the Psychology department and one in Computer Science. At the end of the semester, students in both departments rate these instructors on a 4-point scale: <strong>Poor / Fair / Good / Excellent</strong>.</p>
+<p>Each instructor has a latent (hidden) “teaching effectiveness” score that we never observe. We only see the ordinal rating. Now, <strong>both departments evaluate the same instructors</strong>, but their evaluation forms use <strong>different descriptions</strong> for the rating categories.</p>
+<p><strong>Psychology’s form:</strong></p>
+<ul>
+<li>Poor = “Did not meet basic expectations”</li>
+<li>Fair = “Meets minimum expectations”</li>
+<li>Good = “Consistently above average”</li>
+<li>Excellent = “Outstanding in all respects”</li>
+</ul>
+<p><strong>Computer Science’s form:</strong></p>
+<ul>
+<li>Poor = “Did not meet basic expectations”</li>
+<li>Fair = “Meets minimum expectations”</li>
+<li>Good = “Solid and competent”</li>
+<li>Excellent = “Solid and competent, with minor distinction”</li>
+</ul>
+<p>Notice that in CS, students have to split hairs between “Good” and “Excellent” as the descriptions barely differ. This compresses the top two categories together. Consequently almost everyone who would be “Good” in Psychology ends up rated “Excellent” in CS, not because the teaching improved, but because the <strong>scale changed</strong>.</p>
+<p>Here’s the simulation code. <strong>Read it carefully before running it.</strong></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">504</span>)</span>
+<span id="cb2-2"></span>
+<span id="cb2-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 10 cross-listed instructors with latent teaching effectiveness</span></span>
+<span id="cb2-4">instructors <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb2-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">id =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>,</span>
+<span id="cb2-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">effectiveness =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.2</span>)</span>
+<span id="cb2-7">)</span>
+<span id="cb2-8"></span>
+<span id="cb2-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Each instructor rated by 20 students per department</span></span>
+<span id="cb2-10">ratings_latent <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> instructors <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rowwise</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">latent =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> effectiveness, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">unnest</span>(latent) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ungroup</span>()</span>
+<span id="cb2-15"></span>
+<span id="cb2-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># --- THREE THRESHOLDS PRODUCE FOUR CATEGORIES ---</span></span>
+<span id="cb2-17"></span>
+<span id="cb2-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Psychology: balanced scale</span></span>
+<span id="cb2-19">tau_psych <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb2-20"></span>
+<span id="cb2-21"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Computer Science: compressed top end</span></span>
+<span id="cb2-22">tau_cs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>)</span>
+<span id="cb2-23"></span>
+<span id="cb2-24">ratings <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings_latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-25">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb2-26">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">eval_psych =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">case_when</span>(</span>
+<span id="cb2-27">      latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> tau_psych[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poor"</span>,</span>
+<span id="cb2-28">      latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> tau_psych[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fair"</span>,</span>
+<span id="cb2-29">      latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> tau_psych[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Good"</span>,</span>
+<span id="cb2-30">      <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>                   <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Excellent"</span></span>
+<span id="cb2-31">    ),</span>
+<span id="cb2-32">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">eval_psych =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ordered</span>(eval_psych, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poor"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fair"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Good"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Excellent"</span>)),</span>
+<span id="cb2-33">    </span>
+<span id="cb2-34">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">eval_cs =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">case_when</span>(</span>
+<span id="cb2-35">      latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> tau_cs[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poor"</span>,</span>
+<span id="cb2-36">      latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> tau_cs[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fair"</span>,</span>
+<span id="cb2-37">      latent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> tau_cs[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>] <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Good"</span>,</span>
+<span id="cb2-38">      <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>                <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Excellent"</span></span>
+<span id="cb2-39">    ),</span>
+<span id="cb2-40">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">eval_cs =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ordered</span>(eval_cs, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poor"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fair"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Good"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Excellent"</span>))</span>
+<span id="cb2-41">  )</span></code></pre></div></div>
+</div>
+<section id="question-1.1-visualize-the-latent-distribution" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-1.1-visualize-the-latent-distribution">Question 1.1: Visualize the latent distribution</h3>
+<p>Create a density plot of the latent scores with vertical dashed lines for Psychology’s thresholds (<img src="https://latex.codecogs.com/png.latex?%5Ctau_1%20=%20-1">, <img src="https://latex.codecogs.com/png.latex?%5Ctau_2%20=%200">, <img src="https://latex.codecogs.com/png.latex?%5Ctau_3%20=%201">). Label the four regions (Poor, Fair, Good, Excellent) on the plot.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Key geoms">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Key geoms
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>geom_density()</code> for the curve, <code>geom_vline(xintercept = ...)</code> for the thresholds (use <code>linetype = "dashed"</code>), and <code>annotate("text", x = ..., y = ..., label = ...)</code> to place category labels in each region. You’ll need one <code>annotate()</code> call per label.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(ratings_latent, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> latent)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_density</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_vline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xintercept =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb3-4">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linetype =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dashed"</span>,</span>
+<span id="cb3-5">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poor"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fair"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Good"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Excellent"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Latent Teaching Effectiveness Distribution"</span>,</span>
+<span id="cb3-11">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Teaching Effectiveness"</span>,</span>
+<span id="cb3-12">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Density"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="question-1.2-identical-instructors-different-scales" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-1.2-identical-instructors-different-scales">Question 1.2: Identical instructors, different scales</h3>
+<p>Create side-by-side stacked bar charts showing the observed rating distributions for Psychology and CS.</p>
+<p>The instructors didn’t change, so what did? What does this tell you about what thresholds control?</p>
+<p>How the instructors are rated by the students changed. Different thresholds can cause different categorization based on how you rate the samples, even when latent variables are the same.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Data wrangling">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Data wrangling
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>First, create a frequency table for each department using <code>count()</code>, rename the rating column to a shared name like <code>category</code>, and add a <code>dept</code> label column. Then <code>bind_rows()</code> them together. Compute proportions with <code>mutate(prop = n / sum(n))</code> grouped by department. Plot with <code>geom_col(position = "stack")</code> mapping <code>x = dept</code>, <code>y = prop</code>, and <code>fill = category</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">psych_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(eval_psych) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">category =</span> eval_psych) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">dept =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Psychology"</span>)</span>
+<span id="cb4-5"></span>
+<span id="cb4-6">cs_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(eval_cs) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">category =</span> eval_cs) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">dept =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Computer Science"</span>)</span>
+<span id="cb4-10"></span>
+<span id="cb4-11">both_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_rows</span>(psych_table, cs_table) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">group_by</span>(dept) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prop =</span> n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(n)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ungroup</span>()</span>
+<span id="cb4-15"></span>
+<span id="cb4-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(both_table, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> dept, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> prop, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> category)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_col</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"stack"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-18">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Rating Distributions In Departments"</span>,</span>
+<span id="cb4-19">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Department"</span>,</span>
+<span id="cb4-20">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Proportion"</span>,</span>
+<span id="cb4-21">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Rating"</span></span>
+<span id="cb4-22">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="exercise-1.3-what-does-tau-live-on" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-1.3-what-does-tau-live-on">Exercise 1.3: What does tau live on?</h3>
+<p>The thresholds <img src="https://latex.codecogs.com/png.latex?%5Ctau_1%20=%20-1">, <img src="https://latex.codecogs.com/png.latex?%5Ctau_2%20=%200">, <img src="https://latex.codecogs.com/png.latex?%5Ctau_3%20=%201"> are on the latent “teaching effectiveness” scale — the continuous axis you generated but would never observe in real data. The model re-expresses these same cut points as <strong>log-cumulative-odds</strong> — a transformation of the latent scale that makes the math linear. Convert between them:</p>
+<ol type="a">
+<li>Convert the Psychology Dept thresholds to cumulative probabilities using <code>plogis()</code>. What does each value mean?</li>
+</ol>
+<p>Thresholds for cumulative probabilities of rating categories (e.g., good, excellent).</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: What does plogis() do?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: What does plogis() do?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>plogis()</code> is the inverse logit. It converts log-cumulative-odds back to a probability: <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bplogis%7D(%5Ctau)%20=%20%5Cfrac%7Be%5E%5Ctau%7D%7B1%20+%20e%5E%5Ctau%7D%20=%20P(Y%20%5Cleq%20k)"></p>
+</div>
+</div>
+</div>
+<ol start="2" type="a">
+<li>Suppose you want a rating distribution where 10% are Poor, 30% Fair, 40% Good, and 20% Excellent. What thresholds would produce this? Use <code>qlogis()</code>.</li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: What does qlogis() do?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: What does qlogis() do?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>qlogis()</code> is the logit function, which goes the other direction. Give it a cumulative probability and it returns the threshold: <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bqlogis%7D(p)%20=%20%5Clog%5Cfrac%7Bp%7D%7B1-p%7D%20=%20%5Ctau"></p>
+</div>
+</div>
+</div>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" aria-controls="tabset-1-1" aria-selected="true" href="">Your turn</a></li><li class="nav-item"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" aria-controls="tabset-1-2" aria-selected="false" href="">Expected output</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" aria-labelledby="tabset-1-1-tab">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (a) Thresholds to cumulative probabilities</span></span>
+<span id="cb5-2">thresholds <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb5-3">cumul_probs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plogis</span>(thresholds)</span>
+<span id="cb5-4">cumul_probs</span>
+<span id="cb5-5"></span>
+<span id="cb5-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Then get category-specific probabilities</span></span>
+<span id="cb5-7">cat_probs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diff</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, cumul_probs, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))</span>
+<span id="cb5-8">cat_probs</span>
+<span id="cb5-9"></span>
+<span id="cb5-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (b) Desired split to thresholds</span></span>
+<span id="cb5-11">desired_split <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.10</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.30</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.40</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.20</span>)</span>
+<span id="cb5-12">cumul_desired <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cumsum</span>(desired_split[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>])  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># which elements?</span></span>
+<span id="cb5-13">cumul_desired</span>
+<span id="cb5-14">needed_thresholds <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">qlogis</span>(cumul_desired)</span>
+<span id="cb5-15">needed_thresholds</span></code></pre></div></div>
+</details>
+</div>
+</div>
+<div id="tabset-1-2" class="tab-pane" aria-labelledby="tabset-1-2-tab">
+<ol type="a">
+<li><p>Cumulative probs: 0.269, 0.500, 0.731 Category probs: 0.269, 0.231, 0.231, 0.269</p></li>
+<li><p>Cumulative at cuts: 0.10, 0.40, 0.80 Required thresholds: -2.197, -0.405, 1.386</p></li>
+</ol>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-2-manual-calculation-from-counts-to-log-cumulative-odds" class="level1">
+<h1>Part 2: Manual Calculation — From Counts to Log-Cumulative-Odds</h1>
+<p>The goal of this section is to <strong>demystify model output</strong>. When you later see <code>Poor|Fair = -1.23</code> in a <code>clm()</code> summary, you’ll think: “that’s the log-cumulative-odds I already computed by hand.”</p>
+<section id="exercise-2.1-build-the-table" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-2.1-build-the-table">Exercise 2.1: Build the table</h3>
+<p>Using Psychology Dept’s ratings, compute the following for each category: the count, proportion, cumulative proportion, cumulative odds, and log-cumulative-odds.</p>
+<p>Display the result as a table using <code>kable()</code>.</p>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-2-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-1" aria-controls="tabset-2-1" aria-selected="true" href="">Your turn</a></li><li class="nav-item"><a class="nav-link" id="tabset-2-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-2" aria-controls="tabset-2-2" aria-selected="false" href="">Hint: What’s cumulative odds?</a></li></ul>
+<div class="tab-content">
+<div id="tabset-2-1" class="tab-pane active" aria-labelledby="tabset-2-1-tab">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">hand_calc <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb6-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(eval_psych) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="do" style="color: #5E5E5E;
+background-color: null;
+font-style: italic;">##?</span></span>
+<span id="cb6-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">category =</span> eval_psych) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb6-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb6-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">proportion     =</span> n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(n),</span>
+<span id="cb6-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cumul_proportion =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cumsum</span>(proportion),</span>
+<span id="cb6-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cumul_odds       =</span> cumul_proportion <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> cumul_proportion),</span>
+<span id="cb6-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log_cumul_odds   =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(cumul_odds)</span>
+<span id="cb6-9">  )</span>
+<span id="cb6-10"></span>
+<span id="cb6-11">hand_calc <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+</details>
+</div>
+</div>
+<div id="tabset-2-2" class="tab-pane" aria-labelledby="tabset-2-2-tab">
+<p>Cumulative odds = <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7BP(Y%20%5Cleq%20k)%7D%7BP(Y%20%3E%20k)%7D%20=%20%5Cfrac%7B%5Ctext%7Bcum%5C_proportion%7D%7D%7B1%20-%20%5Ctext%7Bcum%5C_proportion%7D%7D"></p>
+<p>Then take <code>log()</code> (natural log, not log10).</p>
+<p>The last category (Excellent) will be <code>Inf</code>. This is because <img src="https://latex.codecogs.com/png.latex?P(Y%20%5Cleq%20%5Ctext%7BExcellent%7D)%20=%201">, so the odds are <img src="https://latex.codecogs.com/png.latex?1/0%20=%20%5Cinfty">.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="question-2.2-compare-to-model-output" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-2.2-compare-to-model-output">Question 2.2: Compare to model output</h3>
+<p>Fit an intercept-only ordinal model on the Psychology Dept data: <code>clm(eval_psych ~ 1, data = ratings)</code>.</p>
+<p>Compare the model’s threshold estimates to your hand-calculated log-cumulative-odds. How do they compare, and what does this tell you about what the model is doing?</p>
+<p>They’re identical! The model is estimating cumulative probabilities and reporting log-cumulative odds.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">intercept_only <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clm</span>(eval_psych <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> ratings)</span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">modelsummary</span>(intercept_only)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_r4d6ymkp6lrv9wf7zi8q = TinyTable.createTableFunctions("tinytable_r4d6ymkp6lrv9wf7zi8q");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '10', j: 2 } ], css_id: 'tinytable_css_ow1ucdoziimlktid7xa3',}, 
+          { positions: [ { i: '6', j: 2 } ], css_id: 'tinytable_css_trzfjri3iqcbultujdqx',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 } ], css_id: 'tinytable_css_21hotigp4xrmnu48by4f',}, 
+          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_fukwg637ys3tuzzr03ri',}, 
+          { positions: [ { i: '10', j: 1 } ], css_id: 'tinytable_css_saif1ld1ajkww78afxhl',}, 
+          { positions: [ { i: '6', j: 1 } ], css_id: 'tinytable_css_bzdd17r64hvbxhm36jkm',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 } ], css_id: 'tinytable_css_95rzquxcyj57wrgs6rpf',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_2whxqni2iz61sxrsqedo',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_r4d6ymkp6lrv9wf7zi8q.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_ow1ucdoziimlktid7xa3, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_ow1ucdoziimlktid7xa3 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_trzfjri3iqcbultujdqx, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_trzfjri3iqcbultujdqx {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_21hotigp4xrmnu48by4f, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_21hotigp4xrmnu48by4f { text-align: center }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_fukwg637ys3tuzzr03ri, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_fukwg637ys3tuzzr03ri {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_saif1ld1ajkww78afxhl, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_saif1ld1ajkww78afxhl {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_bzdd17r64hvbxhm36jkm, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_bzdd17r64hvbxhm36jkm {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_95rzquxcyj57wrgs6rpf, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_95rzquxcyj57wrgs6rpf { text-align: left }
+    #tinytable_r4d6ymkp6lrv9wf7zi8q td.tinytable_css_2whxqni2iz61sxrsqedo, #tinytable_r4d6ymkp6lrv9wf7zi8q th.tinytable_css_2whxqni2iz61sxrsqedo {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_r4d6ymkp6lrv9wf7zi8q" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">(1)</th>
+              </tr>
+        </thead>
+        
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">Poor|Fair</td>
+                  <td data-row="1" data-col="2">-1.992</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">(0.218)</td>
+                </tr>
+                <tr>
+                  <td data-row="3" data-col="1">Fair|Good</td>
+                  <td data-row="3" data-col="2">-0.511</td>
+                </tr>
+                <tr>
+                  <td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">(0.146)</td>
+                </tr>
+                <tr>
+                  <td data-row="5" data-col="1">Good|Excellent</td>
+                  <td data-row="5" data-col="2">0.824</td>
+                </tr>
+                <tr>
+                  <td data-row="6" data-col="1"></td>
+                  <td data-row="6" data-col="2">(0.154)</td>
+                </tr>
+                <tr>
+                  <td data-row="7" data-col="1">Num.Obs.</td>
+                  <td data-row="7" data-col="2">200</td>
+                </tr>
+                <tr>
+                  <td data-row="8" data-col="1">AIC</td>
+                  <td data-row="8" data-col="2">537.9</td>
+                </tr>
+                <tr>
+                  <td data-row="9" data-col="1">BIC</td>
+                  <td data-row="9" data-col="2">547.8</td>
+                </tr>
+                <tr>
+                  <td data-row="10" data-col="1">RMSE</td>
+                  <td data-row="10" data-col="2">2.71</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+</div>
+</div>
+</section>
+<section id="question-2.3-cumulative-probability-plot" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-2.3-cumulative-probability-plot">Question 2.3: Cumulative probability plot</h3>
+<p>Run the code below. It visualizes the numbers you computed in Exercise 2.1, with gray bars showing cumulative probabilities and blue segments showing category-specific probabilities.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">freq_table <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb8-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(eval_psych) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb8-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">category =</span> eval_psych) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb8-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb8-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prop =</span> n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(n),</span>
+<span id="cb8-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cumul_prop =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cumsum</span>(prop),</span>
+<span id="cb8-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cumul_prop_lag =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lag</span>(cumul_prop, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">default =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb8-8">  )</span>
+<span id="cb8-9"></span>
+<span id="cb8-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(freq_table) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_col</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> category, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> cumul_prop), </span>
+<span id="cb8-12">           <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gray70"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">width =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_segment</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(category) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>, </span>
+<span id="cb8-14">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xend =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(category) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>,</span>
+<span id="cb8-15">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> cumul_prop_lag, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">yend =</span> cumul_prop),</span>
+<span id="cb8-16">               <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(category) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>,</span>
+<span id="cb8-18">                <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> (cumul_prop <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> cumul_prop_lag) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,</span>
+<span id="cb8-19">                <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">round</span>(prop, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)),</span>
+<span id="cb8-20">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"steelblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fontface =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bold"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-21">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">limits =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-22">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(</span>
+<span id="cb8-23">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Cumulative vs. category-specific probabilities"</span>,</span>
+<span id="cb8-24">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">subtitle =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gray = cumulative P(Y ≤ k)   Blue = category P(Y = k)"</span>,</span>
+<span id="cb8-25">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Rating"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Probability"</span></span>
+<span id="cb8-26">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-27">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">14</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Answer these questions:</p>
+<p>What do the gray bar and blue segment for “Fair” represent? Write them as probability statements.</p>
+<p>The gray bar shows a cumulative probability of ‘Fair’ and below ‘Fair’ categories. There is 38% probability that the ratings will fall into ‘Fair’ or ‘Poor’ category. The blue bar, on the other hand, shows category-specific probability. There’s 26% probability that the ratings fall into ‘Fair’ category alone.</p>
+<hr>
+</section>
+</section>
+<section id="part-3-conceptual-questions" class="level1">
+<h1>Part 3: Conceptual Questions</h1>
+<section id="question-3.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-3.1">Question 3.1</h3>
+<p>How does the <strong>cumulative logit</strong> link function differ from the ordinary logit link used in binary logistic regression?</p>
+<p>The cumulative logit is: <img src="https://latex.codecogs.com/png.latex?%5Clog%5Cfrac%7BP(Y%20%5Cleq%20k)%7D%7BP(Y%20%3E%20k)%7D"></p>
+<p>For an outcome with <img src="https://latex.codecogs.com/png.latex?K"> categories, how many equations does this produce? Answer in 2–3 sentences.</p>
+<p>In binary logistic regression, the logit link models a single equation because there are only two categories. In a cumulative logit model, it models cumulative probabilities. For an outcome with k categories, it produced k-1 equations.</p>
+</section>
+<section id="question-3.2-why-not-just-use-linear-regression-aka-metric-models" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-3.2-why-not-just-use-linear-regression-aka-metric-models">Question 3.2: Why not just use linear regression (aka metric models)?</h3>
+<p>Linear regression, ANOVA, and t-tests are all metric models. Metric models assume the numbers you assign to categories have equal spacing and meaningful distances, where you’re treating your scale like a ruler with evenly spaced tick marks.</p>
+<p>Using the simulation data, code Psychology Dept ratings as numbers: Poor = 1, Fair = 2, Good = 3, Excellent = 4. Fit <code>lm(rating_numeric ~ effectiveness)</code>. Then recode as Poor = 1, Fair = 2, Good = 3, Excellent = 10. Fit the model again.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">ratings_1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb9-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rating_numeric =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(eval_psych))</span>
+<span id="cb9-3"></span>
+<span id="cb9-4">model1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(rating_numeric <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> effectiveness, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> ratings_1)</span>
+<span id="cb9-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">modelsummary</span>(model1)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_v76dfocpkr5y6ui2r45f = TinyTable.createTableFunctions("tinytable_v76dfocpkr5y6ui2r45f");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '12', j: 2 } ], css_id: 'tinytable_css_uqi084tcmof5ddnkphmi',}, 
+          { positions: [ { i: '4', j: 2 } ], css_id: 'tinytable_css_ocbhm11a1rdn3nm0ccki',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 } ], css_id: 'tinytable_css_1ox34z60z862otnxjekd',}, 
+          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_fg6xs7pl690yv56ebcha',}, 
+          { positions: [ { i: '12', j: 1 } ], css_id: 'tinytable_css_lmwzftjbet7kyyeydu21',}, 
+          { positions: [ { i: '4', j: 1 } ], css_id: 'tinytable_css_84fnwulelpks6k3i6omb',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 } ], css_id: 'tinytable_css_be7seu4kufjgqqs5oijg',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_zb5mwhhyrkvzrwhwiox7',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_v76dfocpkr5y6ui2r45f.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_uqi084tcmof5ddnkphmi, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_uqi084tcmof5ddnkphmi {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_ocbhm11a1rdn3nm0ccki, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_ocbhm11a1rdn3nm0ccki {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_1ox34z60z862otnxjekd, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_1ox34z60z862otnxjekd { text-align: center }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_fg6xs7pl690yv56ebcha, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_fg6xs7pl690yv56ebcha {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_lmwzftjbet7kyyeydu21, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_lmwzftjbet7kyyeydu21 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_84fnwulelpks6k3i6omb, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_84fnwulelpks6k3i6omb {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_be7seu4kufjgqqs5oijg, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_be7seu4kufjgqqs5oijg { text-align: left }
+    #tinytable_v76dfocpkr5y6ui2r45f td.tinytable_css_zb5mwhhyrkvzrwhwiox7, #tinytable_v76dfocpkr5y6ui2r45f th.tinytable_css_zb5mwhhyrkvzrwhwiox7 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_v76dfocpkr5y6ui2r45f" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">(1)</th>
+              </tr>
+        </thead>
+        
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">(Intercept)</td>
+                  <td data-row="1" data-col="2">2.562</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">(0.064)</td>
+                </tr>
+                <tr>
+                  <td data-row="3" data-col="1">effectiveness</td>
+                  <td data-row="3" data-col="2">0.452</td>
+                </tr>
+                <tr>
+                  <td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">(0.047)</td>
+                </tr>
+                <tr>
+                  <td data-row="5" data-col="1">Num.Obs.</td>
+                  <td data-row="5" data-col="2">200</td>
+                </tr>
+                <tr>
+                  <td data-row="6" data-col="1">R2</td>
+                  <td data-row="6" data-col="2">0.321</td>
+                </tr>
+                <tr>
+                  <td data-row="7" data-col="1">R2 Adj.</td>
+                  <td data-row="7" data-col="2">0.318</td>
+                </tr>
+                <tr>
+                  <td data-row="8" data-col="1">AIC</td>
+                  <td data-row="8" data-col="2">496.8</td>
+                </tr>
+                <tr>
+                  <td data-row="9" data-col="1">BIC</td>
+                  <td data-row="9" data-col="2">506.7</td>
+                </tr>
+                <tr>
+                  <td data-row="10" data-col="1">Log.Lik.</td>
+                  <td data-row="10" data-col="2">-245.421</td>
+                </tr>
+                <tr>
+                  <td data-row="11" data-col="1">F</td>
+                  <td data-row="11" data-col="2">93.728</td>
+                </tr>
+                <tr>
+                  <td data-row="12" data-col="1">RMSE</td>
+                  <td data-row="12" data-col="2">0.83</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(model1)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>effectiveness 
+    0.4517783 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">ratings_2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ratings <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb12-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rating_numeric =</span> dplyr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">recode</span>(eval_psych,</span>
+<span id="cb12-3">                                 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poor"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb12-4">                                 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fair"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,</span>
+<span id="cb12-5">                                 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Good"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>,</span>
+<span id="cb12-6">                                 <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Excellent"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>))</span>
+<span id="cb12-7"></span>
+<span id="cb12-8">model2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(rating_numeric <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> effectiveness, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> ratings_2)</span>
+<span id="cb12-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(model2)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>effectiveness 
+     1.705881 </code></pre>
+</div>
+</div>
+<p>Report both slopes. In one sentence, explain why they differ and what this reveals about metric models.</p>
+<p>The slope of the first model (1,2,3,4) is 0.452 while the second model (1,2,3,10)’s slope is 1.706. Changing the numeric scales can affect the interpretation of ordinal outcomes.</p>
+<hr>
+</section>
+</section>
+<section id="part-4-modeling-the-gbbo-data" class="level1">
+<h1>Part 4: Modeling the GBBO Data</h1>
+<p>The data comes from the Great British Bake Off (GBBO). In each episode, bakers face a “technical challenge” where they receive a recipe with minimal instructions and are judged blind. The judges rank every baker from best to worst.</p>
+<p>We will focus on the <strong>top 3 finishers</strong>. Rank is ordinal, as 1st is better than 2nd and 2nd is better than 3rd, but we cannot say the gap between 1st and 2nd equals the gap between 2nd and 3rd. This is the kind of data that ordinal regression is suited for.</p>
+<p>Do Gender and Age predict how bakers rank in the technical?</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">gbbo <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read_csv</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"https://raw.githubusercontent.com/suyoghc/PSY-504_Spring-2025/refs/heads/main/Ordinal%20Regression/data/GBBO.csv"</span>)</span></code></pre></div></div>
+</div>
+<section id="exercise-4.1-prepare-the-data" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-4.1-prepare-the-data">Exercise 4.1: Prepare the data</h3>
+<p>Filter to only top 3 ranks. Convert <code>Rank</code> to an ordered factor (1 = best, so think about the ordering). Convert <code>Gender</code> to a factor.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Factor ordering">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Factor ordering
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The column is called <code>Technical Rank</code> (with a space), so rename it first with <code>rename(Rank = \</code>Technical Rank`)`.</p>
+<p>What does “higher” mean here? Rank 1 is best. You need to decide whether your ordered factor goes 1 &lt; 2 &lt; 3 (best to worst) or 3 &lt; 2 &lt; 1 (worst to best). The model interprets higher factor levels as “more” of the outcome. Think about what direction makes sense for your interpretation.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">gb <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> gbbo <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb15-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rename</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Rank =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Technical Rank</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># fix column name</span></span>
+<span id="cb15-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb15-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">drop_na</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb15-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb15-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Rank =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ordered</span>(Rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)),  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 3 &lt; 2 &lt; 1, so "higher" = better rank</span></span>
+<span id="cb15-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Gender =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(Gender)</span>
+<span id="cb15-8">  )</span>
+<span id="cb15-9"></span>
+<span id="cb15-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(gb)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 3
+  Gender   Age Rank 
+  &lt;fct&gt;  &lt;dbl&gt; &lt;ord&gt;
+1 F         30 2    
+2 M         31 3    
+3 M         24 1    
+4 F         45 2    
+5 M         25 1    
+6 F         37 3    </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">table</span>(gb<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>Rank)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+  3   2   1 
+102 104 103 </code></pre>
+</div>
+</div>
+</section>
+<section id="question-4.2-explore" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-4.2-explore">Question 4.2: Explore</h3>
+<p>Create two visualizations:</p>
+<ol type="a">
+<li>A bar chart showing the proportion of bakers in each rank by Gender.</li>
+<li>A bar chart showing the proportion of bakers in each rank by Age (bin Age into groups using <code>cut()</code>).</li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Proportional bar charts">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Proportional bar charts
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>geom_bar(position = "fill")</code> gives proportions instead of counts. Map <code>x = Gender</code> (or your age groups) and <code>fill = Rank</code>. For part (b), create age bins with something like <code>cut(Age, breaks = c(15, 25, 35, 45, 55, 75))</code> inside a <code>mutate()</code> before plotting.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#a</span></span>
+<span id="cb19-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(gb, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> Gender, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> Rank)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bar</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"fill"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">labels =</span> scales<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">percent_format</span>()) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(</span>
+<span id="cb19-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Proportion by Gender"</span>,</span>
+<span id="cb19-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gender"</span>,</span>
+<span id="cb19-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Proportion"</span></span>
+<span id="cb19-9">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb19-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">base_size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">14</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#b</span></span>
+<span id="cb20-2">gb_age <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> gb <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb20-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">AgeGroup =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cut</span>(Age, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">35</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">45</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">55</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">75</span>)))</span>
+<span id="cb20-4"></span>
+<span id="cb20-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(gb_age, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> AgeGroup, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> Rank)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bar</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"fill"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">labels =</span> scales<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">percent_format</span>()) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(</span>
+<span id="cb20-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Proportion by Age group"</span>,</span>
+<span id="cb20-10">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Age group"</span>,</span>
+<span id="cb20-11">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Proportion"</span></span>
+<span id="cb20-12">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-12-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="question-4.3-build-models" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-4.3-build-models">Question 4.3: Build models</h3>
+<p>Fit the following models using <code>clm()</code> from the <code>ordinal</code> package:</p>
+<ul>
+<li><strong>Model 0:</strong> Intercept only — <code>Rank ~ 1</code></li>
+<li><strong>Model 1:</strong> <code>Rank ~ Gender</code></li>
+<li><strong>Model 2:</strong> <code>Rank ~ Gender + Age</code></li>
+<li><strong>Model 3:</strong> <code>Rank ~ Gender * Age</code></li>
+</ul>
+<p>For Model 2:</p>
+<ol type="a">
+<li><p>Report the threshold estimates. What do they represent?</p>
+<p>3|2 is -0.6005 (log-odds of rank being third place) and 2|1 is 0.8048 (log-odds of rank being third or second place).</p></li>
+<li><p>Exponentiate the coefficients. Interpret the odds ratio for <code>Age</code> in one sentence.</p>
+<p>When age increases 1 year, the odds of being in a higher rank increase 1.0056%(?).</p></li>
+<li><p>Using Model 2, what is the predicted probability of Rank 1 for a 30-year-old female? Use <code>predictions()</code> from the <code>marginaleffects</code> package.</p>
+<p>34.6%. Have we learned how to use this function..?</p></li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Interpreting thresholds">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Interpreting thresholds
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The thresholds are the log-cumulative-odds of <img src="https://latex.codecogs.com/png.latex?P(Y%20%5Cleq%20k)"> when all predictors are zero. They define the baseline distribution — where the cuts fall before any predictor shifts the distribution.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1">m0 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clm</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> gb)</span>
+<span id="cb21-2">m1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clm</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Gender, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> gb)</span>
+<span id="cb21-3">m2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clm</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Gender <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> Age, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> gb)</span>
+<span id="cb21-4">m3 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clm</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Gender <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> Age, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> gb)</span>
+<span id="cb21-5"></span>
+<span id="cb21-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(m2)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>formula: Rank ~ Gender + Age
+data:    gb
+
+ link  threshold nobs logLik  AIC    niter max.grad cond.H 
+ logit flexible  309  -338.86 685.72 3(0)  1.05e-10 2.9e+04
+
+Coefficients:
+         Estimate Std. Error z value Pr(&gt;|z|)
+GenderM -0.190952   0.210607  -0.907    0.365
+Age      0.005618   0.009100   0.617    0.537
+
+Threshold coefficients:
+    Estimate Std. Error z value
+3|2  -0.6005     0.3493  -1.719
+2|1   0.8048     0.3507   2.295</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(m2))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      3|2       2|1   GenderM       Age 
+0.5485392 2.2362995 0.8261722 1.0056339 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predictions</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">newdata =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Gender =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"F"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Age =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span>))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ Group Estimate Std. Error     z Pr(&gt;|z|)     S 2.5 % 97.5 % Gender Age
+     3    0.317     0.0345  9.17   &lt;0.001  64.1 0.249  0.384      F  30
+     2    0.337     0.0270 12.51   &lt;0.001 116.9 0.284  0.390      F  30
+     1    0.346     0.0357  9.70   &lt;0.001  71.5 0.276  0.416      F  30
+
+Type:  prob </code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="part-5-model-comparison" class="level1">
+<h1>Part 5: Model Comparison</h1>
+<section id="question-5.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-5.1">Question 5.1</h3>
+<p>Use <code>anova()</code> to compare Model 2 (no interaction) with Model 3 (interaction). Is the interaction warranted?</p>
+<p>Yes. Model 3 is significantly better than Model 2.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: What is anova() doing here?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: What is anova() doing here?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Each model’s parameters are estimated by maximizing its likelihood function, finding the parameter values that make the observed data as probable as possible. <code>anova()</code> performs a likelihood ratio test. It computes:</p>
+<p><img src="https://latex.codecogs.com/png.latex?LR%20=%20-2%20%5Clog%5Cleft(%5Cfrac%7BL_%7B%5Ctext%7Bsimple%7D%7D%7D%7BL_%7B%5Ctext%7Bcomplex%7D%7D%7D%5Cright)"></p>
+<p>This statistic follows a chi-square distribution. A significant p-value means the complex model fits meaningfully better, so the interaction is worth keeping. A non-significant p-value means the extra parameters aren’t earning their keep, so you should prefer the simpler model.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">anova</span>(m2, m3)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Likelihood ratio tests of cumulative link models:
+ 
+   formula:            link: threshold:
+m2 Rank ~ Gender + Age logit flexible  
+m3 Rank ~ Gender * Age logit flexible  
+
+   no.par    AIC  logLik LR.stat df Pr(&gt;Chisq)  
+m2      4 685.72 -338.86                        
+m3      5 683.28 -336.64   4.437  1    0.03517 *
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+</div>
+</section>
+<section id="question-5.2" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-5.2">Question 5.2</h3>
+<p>Create a publication-quality comparison table of all four models using <code>modelsummary()</code>. Exponentiate the coefficients so they display as odds ratios.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Put all four models in a named list: <code>list("Intercept only" = m0, "Gender" = m1, "Gender + Age" = m2, "Gender × Age" = m3)</code>. Pass it to <code>modelsummary()</code> with <code>exponentiate = TRUE</code> to display odds ratios and <code>stars = TRUE</code> to add significance stars.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1">models <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Intercept only"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> m0, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gender"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> m1, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gender + Age"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> m2, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gender × Age"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> m3)</span>
+<span id="cb29-2"></span>
+<span id="cb29-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">modelsummary</span>(models, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">exponentiate =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">stars =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_fhghm5xc6hurxmkr6ryh = TinyTable.createTableFunctions("tinytable_fhghm5xc6hurxmkr6ryh");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '14', j: 2 }, { i: '14', j: 3 }, { i: '14', j: 4 }, { i: '14', j: 5 } ], css_id: 'tinytable_css_2uyug210it1p9k37obmt',}, 
+          { positions: [ { i: '10', j: 2 }, { i: '10', j: 3 }, { i: '10', j: 4 }, { i: '10', j: 5 } ], css_id: 'tinytable_css_1iadn6832mv1papg61j1',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '1', j: 4 }, { i: '2', j: 4 }, { i: '3', j: 4 }, { i: '4', j: 4 }, { i: '5', j: 4 }, { i: '6', j: 4 }, { i: '7', j: 4 }, { i: '8', j: 4 }, { i: '9', j: 4 }, { i: '11', j: 4 }, { i: '12', j: 4 }, { i: '13', j: 4 }, { i: '1', j: 5 }, { i: '2', j: 5 }, { i: '3', j: 5 }, { i: '4', j: 5 }, { i: '5', j: 5 }, { i: '6', j: 5 }, { i: '7', j: 5 }, { i: '8', j: 5 }, { i: '9', j: 5 }, { i: '11', j: 5 }, { i: '12', j: 5 }, { i: '13', j: 5 } ], css_id: 'tinytable_css_pinqyypc1o99we7hv77h',}, 
+          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_gc06o302sw65dm5uhnwx',}, 
+          { positions: [ { i: '14', j: 1 } ], css_id: 'tinytable_css_kzwi65oqv3vudx2iyzj4',}, 
+          { positions: [ { i: '10', j: 1 } ], css_id: 'tinytable_css_leloui9grq6toenmbimc',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 } ], css_id: 'tinytable_css_n0yuwarpoke4prjp9mhm',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_wsac5uk7ywhy067uu6s5',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_fhghm5xc6hurxmkr6ryh.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_2uyug210it1p9k37obmt, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_2uyug210it1p9k37obmt {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_1iadn6832mv1papg61j1, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_1iadn6832mv1papg61j1 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_pinqyypc1o99we7hv77h, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_pinqyypc1o99we7hv77h { text-align: center }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_gc06o302sw65dm5uhnwx, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_gc06o302sw65dm5uhnwx {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_kzwi65oqv3vudx2iyzj4, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_kzwi65oqv3vudx2iyzj4 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_leloui9grq6toenmbimc, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_leloui9grq6toenmbimc {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_n0yuwarpoke4prjp9mhm, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_n0yuwarpoke4prjp9mhm { text-align: left }
+    #tinytable_fhghm5xc6hurxmkr6ryh td.tinytable_css_wsac5uk7ywhy067uu6s5, #tinytable_fhghm5xc6hurxmkr6ryh th.tinytable_css_wsac5uk7ywhy067uu6s5 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_fhghm5xc6hurxmkr6ryh" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">Intercept only</th>
+                <th scope="col" data-row="0" data-col="3">Gender</th>
+                <th scope="col" data-row="0" data-col="4">Gender + Age</th>
+                <th scope="col" data-row="0" data-col="5">Gender × Age</th>
+              </tr>
+        </thead>
+        <tfoot><tr><td colspan="5">+ p &lt; 0.1, * p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001</td></tr></tfoot>
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">3|2</td>
+                  <td data-row="1" data-col="2">0.493***</td>
+                  <td data-row="1" data-col="3">0.452***</td>
+                  <td data-row="1" data-col="4">0.549+</td>
+                  <td data-row="1" data-col="5">0.995</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">(0.060)</td>
+                  <td data-row="2" data-col="3">(0.070)</td>
+                  <td data-row="2" data-col="4">(0.192)</td>
+                  <td data-row="2" data-col="5">(0.450)</td>
+                </tr>
+                <tr>
+                  <td data-row="3" data-col="1">2|1</td>
+                  <td data-row="3" data-col="2">2.000***</td>
+                  <td data-row="3" data-col="3">1.840***</td>
+                  <td data-row="3" data-col="4">2.236*</td>
+                  <td data-row="3" data-col="5">4.123**</td>
+                </tr>
+                <tr>
+                  <td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">(0.241)</td>
+                  <td data-row="4" data-col="3">(0.279)</td>
+                  <td data-row="4" data-col="4">(0.784)</td>
+                  <td data-row="4" data-col="5">(1.895)</td>
+                </tr>
+                <tr>
+                  <td data-row="5" data-col="1">GenderM</td>
+                  <td data-row="5" data-col="2"></td>
+                  <td data-row="5" data-col="3">0.826</td>
+                  <td data-row="5" data-col="4">0.826</td>
+                  <td data-row="5" data-col="5">3.157+</td>
+                </tr>
+                <tr>
+                  <td data-row="6" data-col="1"></td>
+                  <td data-row="6" data-col="2"></td>
+                  <td data-row="6" data-col="3">(0.174)</td>
+                  <td data-row="6" data-col="4">(0.174)</td>
+                  <td data-row="6" data-col="5">(2.124)</td>
+                </tr>
+                <tr>
+                  <td data-row="7" data-col="1">Age</td>
+                  <td data-row="7" data-col="2"></td>
+                  <td data-row="7" data-col="3"></td>
+                  <td data-row="7" data-col="4">1.006</td>
+                  <td data-row="7" data-col="5">1.023+</td>
+                </tr>
+                <tr>
+                  <td data-row="8" data-col="1"></td>
+                  <td data-row="8" data-col="2"></td>
+                  <td data-row="8" data-col="3"></td>
+                  <td data-row="8" data-col="4">(0.009)</td>
+                  <td data-row="8" data-col="5">(0.013)</td>
+                </tr>
+                <tr>
+                  <td data-row="9" data-col="1">GenderM × Age</td>
+                  <td data-row="9" data-col="2"></td>
+                  <td data-row="9" data-col="3"></td>
+                  <td data-row="9" data-col="4"></td>
+                  <td data-row="9" data-col="5">0.962*</td>
+                </tr>
+                <tr>
+                  <td data-row="10" data-col="1"></td>
+                  <td data-row="10" data-col="2"></td>
+                  <td data-row="10" data-col="3"></td>
+                  <td data-row="10" data-col="4"></td>
+                  <td data-row="10" data-col="5">(0.018)</td>
+                </tr>
+                <tr>
+                  <td data-row="11" data-col="1">Num.Obs.</td>
+                  <td data-row="11" data-col="2">309</td>
+                  <td data-row="11" data-col="3">309</td>
+                  <td data-row="11" data-col="4">309</td>
+                  <td data-row="11" data-col="5">309</td>
+                </tr>
+                <tr>
+                  <td data-row="12" data-col="1">AIC</td>
+                  <td data-row="12" data-col="2">682.9</td>
+                  <td data-row="12" data-col="3">684.1</td>
+                  <td data-row="12" data-col="4">685.7</td>
+                  <td data-row="12" data-col="5">683.3</td>
+                </tr>
+                <tr>
+                  <td data-row="13" data-col="1">BIC</td>
+                  <td data-row="13" data-col="2">690.4</td>
+                  <td data-row="13" data-col="3">695.3</td>
+                  <td data-row="13" data-col="4">700.7</td>
+                  <td data-row="13" data-col="5">702.0</td>
+                </tr>
+                <tr>
+                  <td data-row="14" data-col="1">RMSE</td>
+                  <td data-row="14" data-col="2">1.86</td>
+                  <td data-row="14" data-col="3">1.86</td>
+                  <td data-row="14" data-col="4">1.86</td>
+                  <td data-row="14" data-col="5">1.85</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="part-6-predicted-probabilities" class="level1">
+<h1>Part 6: Predicted Probabilities</h1>
+<section id="mini-tutorial-marginaleffectspredictions" class="level2">
+<h2 class="anchored" data-anchor-id="mini-tutorial-marginaleffectspredictions">Mini-tutorial: <code>marginaleffects::predictions()</code></h2>
+<p>The <code>predictions()</code> function computes predicted probabilities for specific covariate profiles. Here’s a worked example:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Predicted probabilities for a 30-year-old female</span></span>
+<span id="cb30-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predictions</span>(m2, </span>
+<span id="cb30-3">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">newdata =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">datagrid</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Gender =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"F"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Age =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span>),</span>
+<span id="cb30-4">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"prob"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb30-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Predicted P(Rank) for a 30-year-old female"</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Predicted P(Rank) for a 30-year-old female</caption>
+<colgroup>
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 9%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 8%">
+<col style="width: 8%">
+<col style="width: 9%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 4%">
+<col style="width: 5%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">rowid</th>
+<th style="text-align: left;">group</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+<th style="text-align: right;">s.value</th>
+<th style="text-align: right;">conf.low</th>
+<th style="text-align: right;">conf.high</th>
+<th style="text-align: left;">Gender</th>
+<th style="text-align: right;">Age</th>
+<th style="text-align: left;">Rank</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: right;">0.317</td>
+<td style="text-align: right;">0.035</td>
+<td style="text-align: right;">9.166</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">64.148</td>
+<td style="text-align: right;">0.249</td>
+<td style="text-align: right;">0.384</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: left;">2</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">2</td>
+<td style="text-align: right;">0.337</td>
+<td style="text-align: right;">0.027</td>
+<td style="text-align: right;">12.511</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">116.898</td>
+<td style="text-align: right;">0.284</td>
+<td style="text-align: right;">0.390</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: left;">2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: right;">0.346</td>
+<td style="text-align: right;">0.036</td>
+<td style="text-align: right;">9.703</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">71.539</td>
+<td style="text-align: right;">0.276</td>
+<td style="text-align: right;">0.416</td>
+<td style="text-align: left;">F</td>
+<td style="text-align: right;">30</td>
+<td style="text-align: left;">2</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="question-6.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-6.1">Question 6.1</h3>
+<p>Compare the predicted probabilities for a 25-year-old female vs.&nbsp;a 25-year-old male. Which gender has a higher predicted probability of Rank 1?</p>
+<p>34% for a 25-year-old female and 29.8% for a 25-year-old male. Higher for a female!</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predictions</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">newdata =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Gender =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"F"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Age =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ Group Estimate Std. Error     z Pr(&gt;|z|)     S 2.5 % 97.5 % Gender Age
+     3    0.323     0.0386  8.36   &lt;0.001  53.8 0.247  0.399      F  25
+     2    0.337     0.0270 12.52   &lt;0.001 117.0 0.285  0.390      F  25
+     1    0.340     0.0394  8.62   &lt;0.001  57.1 0.263  0.417      F  25
+
+Type:  prob </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predictions</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">newdata =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Gender =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"M"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Age =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ Group Estimate Std. Error     z Pr(&gt;|z|)     S 2.5 % 97.5 % Gender Age
+     3    0.366     0.0436  8.39   &lt;0.001  54.2 0.280  0.451      M  25
+     2    0.336     0.0270 12.43   &lt;0.001 115.3 0.283  0.389      M  25
+     1    0.298     0.0402  7.43   &lt;0.001  43.0 0.220  0.377      M  25
+
+Type:  prob </code></pre>
+</div>
+</div>
+</section>
+<section id="exercise-6.2-verify-by-hand" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-6.2-verify-by-hand">Exercise 6.2: Verify by hand</h3>
+<p>Compute the predicted probability of Rank 3 for a 25-year-old female using the formula:</p>
+<p><img src="https://latex.codecogs.com/png.latex?P(Y%20%5Cleq%20k)%20=%20%5Ctext%7Bplogis%7D(%5Calpha_k%20-%20%5Cbeta_1%20X_1%20-%20%5Cbeta_2%20X_2)"></p>
+<p>Use the threshold and coefficient values from <code>coef(m2)</code>. Confirm that your manually calculated value matches the model output.</p>
+<p>Yes! Both 32.3%.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: The subtraction">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: The subtraction
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Remember the model uses subtraction: <img src="https://latex.codecogs.com/png.latex?%5Ceta%20=%20%5Calpha_k%20-%20%5Cbeta%20X">. So it’s <code>plogis(threshold - (beta_gender * 0 + beta_age * 25))</code>. Gender = 0 if the reference level is female.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(m2)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>formula: Rank ~ Gender + Age
+data:    gb
+
+ link  threshold nobs logLik  AIC    niter max.grad cond.H 
+ logit flexible  309  -338.86 685.72 3(0)  1.05e-10 2.9e+04
+
+Coefficients:
+         Estimate Std. Error z value Pr(&gt;|z|)
+GenderM -0.190952   0.210607  -0.907    0.365
+Age      0.005618   0.009100   0.617    0.537
+
+Threshold coefficients:
+    Estimate Std. Error z value
+3|2  -0.6005     0.3493  -1.719
+2|1   0.8048     0.3507   2.295</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1">threshold <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(m2)[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"3|2"</span>]</span>
+<span id="cb37-2">threshold</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>       3|2 
+-0.6004965 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1">beta_gender <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(m2)[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GenderM"</span>]</span>
+<span id="cb39-2">beta_gender</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  GenderM 
+-0.190952 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1">beta_age <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(m2)[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Age"</span>]</span>
+<span id="cb41-2">beta_age</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>        Age 
+0.005618057 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plogis</span>(threshold <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> (beta_gender <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> beta_age <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>      3|2 
+0.3227969 </code></pre>
+</div>
+</div>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-7-marginal-effects" class="level1">
+<h1>Part 7: Marginal Effects</h1>
+<section id="mini-tutorial-avg_comparisons" class="level2">
+<h2 class="anchored" data-anchor-id="mini-tutorial-avg_comparisons">Mini-tutorial: <code>avg_comparisons()</code></h2>
+<p>Marginal effects answer the question: “How much does the predicted probability of each category change when I shift one predictor, holding everything else constant?”</p>
+<p>In OLS, the slope <em>is</em> the marginal effect, because one unit of X always produces β units of change in Y. That’s because the model predicts Y directly, with no transformation.</p>
+<p>In any GLM with a nonlinear link (logistic regression, Poisson, ordinal, …), the slope and the marginal effect come apart. The model estimates β on a transformed scale (log-odds, log-counts), but the relationship between that scale and probability is a curve, not a line. The same β of 0.5 might shift a probability from 0.10 to 0.15 (a 5-point change) near the tails, but from 0.45 to 0.57 (a 12-point change) near the middle. The coefficient is identical in both cases, but its impact differs because the curve is steepest in the center and flat at the extremes.</p>
+<p>For ordinal regression specifically, there’s an added wrinkle: the marginal effect is different for <strong>each category</strong>. Age might increase P(Rank 1) while simultaneously decreasing P(Rank 3), because probability must redistribute.</p>
+<p><code>avg_comparisons()</code> handles all of this. It computes the probability-scale effect at every observation, then averages — giving you one summary per category in percentage points.</p>
+<p>Here’s a worked example interpreting the effect of Gender:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">avg_comparisons</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">variables =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gender"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"prob"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb45-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Average marginal effect of Gender on each rank"</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Average marginal effect of Gender on each rank</caption>
+<colgroup>
+<col style="width: 8%">
+<col style="width: 6%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 10%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: left;">group</th>
+<th style="text-align: left;">contrast</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+<th style="text-align: right;">s.value</th>
+<th style="text-align: right;">conf.low</th>
+<th style="text-align: right;">conf.high</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Gender</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">M - F</td>
+<td style="text-align: right;">0.042</td>
+<td style="text-align: right;">0.047</td>
+<td style="text-align: right;">0.904</td>
+<td style="text-align: right;">0.366</td>
+<td style="text-align: right;">1.451</td>
+<td style="text-align: right;">-0.049</td>
+<td style="text-align: right;">0.134</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Gender</td>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">M - F</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.003</td>
+<td style="text-align: right;">-0.035</td>
+<td style="text-align: right;">0.972</td>
+<td style="text-align: right;">0.040</td>
+<td style="text-align: right;">-0.006</td>
+<td style="text-align: right;">0.006</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gender</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">M - F</td>
+<td style="text-align: right;">-0.042</td>
+<td style="text-align: right;">0.046</td>
+<td style="text-align: right;">-0.911</td>
+<td style="text-align: right;">0.362</td>
+<td style="text-align: right;">1.464</td>
+<td style="text-align: right;">-0.133</td>
+<td style="text-align: right;">0.049</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p><strong>Interpretation example:</strong> <em>“Switching from female to male changes the probability of achieving Rank 1 by -4.2 percentage points, on average. This means males are less likely to finish first in the technical challenge than females.”</em></p>
+<section id="question-7.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-7.1">Question 7.1</h3>
+<p>Compute the average marginal effect of <code>Age</code> on each rank category using <code>avg_comparisons()</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">avg_comparisons</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">variables =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Age"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"prob"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb46-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Average marginal effect of Age on each rank"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Average marginal effect of Age on each rank</caption>
+<colgroup>
+<col style="width: 5%">
+<col style="width: 7%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 10%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: left;">group</th>
+<th style="text-align: left;">contrast</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+<th style="text-align: right;">s.value</th>
+<th style="text-align: right;">conf.low</th>
+<th style="text-align: right;">conf.high</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Age</td>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">+1</td>
+<td style="text-align: right;">-0.001</td>
+<td style="text-align: right;">0.002</td>
+<td style="text-align: right;">-0.619</td>
+<td style="text-align: right;">0.536</td>
+<td style="text-align: right;">0.899</td>
+<td style="text-align: right;">-0.005</td>
+<td style="text-align: right;">0.003</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Age</td>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">+1</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">-0.100</td>
+<td style="text-align: right;">0.921</td>
+<td style="text-align: right;">0.119</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Age</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">+1</td>
+<td style="text-align: right;">0.001</td>
+<td style="text-align: right;">0.002</td>
+<td style="text-align: right;">0.618</td>
+<td style="text-align: right;">0.537</td>
+<td style="text-align: right;">0.898</td>
+<td style="text-align: right;">-0.003</td>
+<td style="text-align: right;">0.005</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Translate the marginal effect for <strong>Rank 1</strong> into a sentence that a non-statistician would understand.</p>
+<p>Getting one year older changes the probability of achieving Rank 1 by 0.1 percentage points, on average. You become 0.1 percentage point more likely achieve rank 1 as you get 1 year older.</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-8-estimated-marginal-means" class="level1">
+<h1>Part 8: Estimated Marginal Means</h1>
+<section id="mini-tutorial-emmeans" class="level2">
+<h2 class="anchored" data-anchor-id="mini-tutorial-emmeans">Mini-tutorial: <code>emmeans()</code></h2>
+<p><code>emmeans()</code> computes estimated marginal means, which are the model’s best guess for each group, averaged across other predictors. For ordinal models, we need <code>mode = "prob"</code> to get predicted probabilities.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">emmeans</span>(m2, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Gender, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mode =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"prob"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb47-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">kable</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">digits =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Estimated probabilities by Gender"</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Estimated probabilities by Gender</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Gender</th>
+<th style="text-align: right;">prob</th>
+<th style="text-align: right;">SE</th>
+<th style="text-align: right;">df</th>
+<th style="text-align: right;">asymp.LCL</th>
+<th style="text-align: right;">asymp.UCL</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">F</td>
+<td style="text-align: right;">0.333</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">Inf</td>
+<td style="text-align: right;">0.333</td>
+<td style="text-align: right;">0.333</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">M</td>
+<td style="text-align: right;">0.333</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">Inf</td>
+<td style="text-align: right;">0.333</td>
+<td style="text-align: right;">0.333</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="question-8.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-8.1">Question 8.1</h3>
+<p>Use <code>ggemmeans()</code> from the <code>ggeffects</code> package to plot predicted probabilities across Age, colored by Gender. The output should show how the probability of each rank category changes with age for each gender.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>ggemmeans(m2, terms = c("Age", "Gender"))</code> returns a data frame of predicted probabilities. You can pipe it directly to <code>plot()</code> for a quick visualization, or use the returned data with <code>ggplot()</code> for more control over the appearance.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1">m2_emmeans <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggemmeans</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">terms =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Age[all]"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Gender"</span>))</span>
+<span id="cb48-2"></span>
+<span id="cb48-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(m2_emmeans)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-9-assumption-checking" class="level1">
+<h1>Part 9: Assumption Checking</h1>
+<section id="question-9.1-proportional-odds" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-9.1-proportional-odds">Question 9.1: Proportional odds</h3>
+<p>The proportional odds assumption says the effect of a predictor is the same at every threshold — the slope doesn’t change depending on where you split the outcome.</p>
+<p>Use the Brant test to check this assumption. State your conclusion.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Which package and model object?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Which package and model object?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>brant.test()</code> from the <code>gofcat</code> package requires a <code>polr()</code> model, not a <code>clm()</code> model. Refit using <code>MASS::polr()</code> first.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1">m2_polr <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">polr</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Gender <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> Age, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> gb)</span>
+<span id="cb49-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">brant.test</span>(m2_polr)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Brant Test:
+           chi-sq   df   pr(&gt;chi)
+Omnibus     0.367    2       0.83
+GenderM     0.296    1       0.59
+Age         0.075    1       0.78
+
+H0: Proportional odds assumption holds</code></pre>
+</div>
+</div>
+<p>All p values are not significant, so the assumption appears to hold.</p>
+</section>
+<section id="question-9.2-surrogate-residuals" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-9.2-surrogate-residuals">Question 9.2: Surrogate residuals</h3>
+<p>Use the <code>sure</code> package to create a QQ plot of surrogate residuals. Does the latent normality assumption appear to hold?</p>
+<p>It looks like a straight line, which means that the latent normality assumption holds.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1">?sure</span>
+<span id="cb51-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(sure)</span>
+<span id="cb51-3">residuals <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">resids</span>(m2, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"latent"</span>)</span>
+<span id="cb51-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">class</span>(residuals)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "numeric" "resid"  </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#sure::autoplot(residuals)   ## this doesn't work??</span></span>
+<span id="cb53-2"></span>
+<span id="cb53-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#dev.new()</span></span>
+<span id="cb53-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">qqnorm</span>(residuals)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal-regression_DianaKim_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#qqline(residuals, col = "red", lwd = 2)</span></span></code></pre></div></div>
+</details>
+</div>
+<hr>
+</section>
+</section>
+<section id="part-10-write-up" class="level1">
+<h1>Part 10: Write-Up</h1>
+<section id="question-10.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-10.1">Question 10.1</h3>
+<p>Write a <strong>1-paragraph results section</strong> for your final model. Your paragraph must include:</p>
+<ul>
+<li>The model type and link function</li>
+<li>Sample size</li>
+<li>The proportional odds test result</li>
+<li>At least one key coefficient reported as an odds ratio with a confidence interval</li>
+<li>At least one marginal effect translated into probability terms</li>
+</ul>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">modelsummary</span>(m2)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_74hmv4cdhcgeslxl87rg = TinyTable.createTableFunctions("tinytable_74hmv4cdhcgeslxl87rg");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '12', j: 2 } ], css_id: 'tinytable_css_6pelooxr6iyhlyp5c365',}, 
+          { positions: [ { i: '8', j: 2 } ], css_id: 'tinytable_css_27d7kw5vxi4jucvap3wt',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 } ], css_id: 'tinytable_css_cgei65mo8gdnsi4fymvk',}, 
+          { positions: [ { i: '0', j: 2 } ], css_id: 'tinytable_css_i1xnk3qlwetc2zkqo54s',}, 
+          { positions: [ { i: '12', j: 1 } ], css_id: 'tinytable_css_moh55ld4zircqsncm2l6',}, 
+          { positions: [ { i: '8', j: 1 } ], css_id: 'tinytable_css_b1jnc6ks1vsxdsc0ccdx',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 } ], css_id: 'tinytable_css_8zu6ulg0s3tmkjc5i91r',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_u3id6zbke6ik6of1q6c6',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_74hmv4cdhcgeslxl87rg.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_6pelooxr6iyhlyp5c365, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_6pelooxr6iyhlyp5c365 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_27d7kw5vxi4jucvap3wt, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_27d7kw5vxi4jucvap3wt {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_cgei65mo8gdnsi4fymvk, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_cgei65mo8gdnsi4fymvk { text-align: center }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_i1xnk3qlwetc2zkqo54s, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_i1xnk3qlwetc2zkqo54s {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_moh55ld4zircqsncm2l6, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_moh55ld4zircqsncm2l6 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_b1jnc6ks1vsxdsc0ccdx, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_b1jnc6ks1vsxdsc0ccdx {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_8zu6ulg0s3tmkjc5i91r, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_8zu6ulg0s3tmkjc5i91r { text-align: left }
+    #tinytable_74hmv4cdhcgeslxl87rg td.tinytable_css_u3id6zbke6ik6of1q6c6, #tinytable_74hmv4cdhcgeslxl87rg th.tinytable_css_u3id6zbke6ik6of1q6c6 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_74hmv4cdhcgeslxl87rg" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">(1)</th>
+              </tr>
+        </thead>
+        
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">3|2</td>
+                  <td data-row="1" data-col="2">-0.600</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">(0.349)</td>
+                </tr>
+                <tr>
+                  <td data-row="3" data-col="1">2|1</td>
+                  <td data-row="3" data-col="2">0.805</td>
+                </tr>
+                <tr>
+                  <td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">(0.351)</td>
+                </tr>
+                <tr>
+                  <td data-row="5" data-col="1">GenderM</td>
+                  <td data-row="5" data-col="2">-0.191</td>
+                </tr>
+                <tr>
+                  <td data-row="6" data-col="1"></td>
+                  <td data-row="6" data-col="2">(0.211)</td>
+                </tr>
+                <tr>
+                  <td data-row="7" data-col="1">Age</td>
+                  <td data-row="7" data-col="2">0.006</td>
+                </tr>
+                <tr>
+                  <td data-row="8" data-col="1"></td>
+                  <td data-row="8" data-col="2">(0.009)</td>
+                </tr>
+                <tr>
+                  <td data-row="9" data-col="1">Num.Obs.</td>
+                  <td data-row="9" data-col="2">309</td>
+                </tr>
+                <tr>
+                  <td data-row="10" data-col="1">AIC</td>
+                  <td data-row="10" data-col="2">685.7</td>
+                </tr>
+                <tr>
+                  <td data-row="11" data-col="1">BIC</td>
+                  <td data-row="11" data-col="2">700.7</td>
+                </tr>
+                <tr>
+                  <td data-row="12" data-col="1">RMSE</td>
+                  <td data-row="12" data-col="2">1.86</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(m2)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>formula: Rank ~ Gender + Age
+data:    gb
+
+ link  threshold nobs logLik  AIC    niter max.grad cond.H 
+ logit flexible  309  -338.86 685.72 3(0)  1.05e-10 2.9e+04
+
+Coefficients:
+         Estimate Std. Error z value Pr(&gt;|z|)
+GenderM -0.190952   0.210607  -0.907    0.365
+Age      0.005618   0.009100   0.617    0.537
+
+Threshold coefficients:
+    Estimate Std. Error z value
+3|2  -0.6005     0.3493  -1.719
+2|1   0.8048     0.3507   2.295</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(m2)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>         3|2          2|1      GenderM          Age 
+-0.600496501  0.804822497 -0.190952025  0.005618057 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(m2))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>      3|2       2|1   GenderM       Age 
+0.5485392 2.2362995 0.8261722 1.0056339 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">confint.default</span>(m2)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>              2.5 %     97.5 %
+3|2     -1.28511933 0.08412633
+2|1      0.11739311 1.49225189
+GenderM -0.60373424 0.22183019
+Age     -0.01221723 0.02345335</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">confint.default</span>(m2))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>            2.5 %   97.5 %
+3|2     0.2766176 1.087766
+2|1     1.1245614 4.447099
+GenderM 0.5467661 1.248359
+Age     0.9878571 1.023731</code></pre>
+</div>
+</div>
+<p>We used a cumulative logit model (proportional odds) to predict technical rank (1st, 2nd, 3rd) from gender and age (N = 309). A Brant test supported the proportional odds assumption (χ² = 0.367, p = 0.83). Gender was not a significant predictor of rank (OR = 0.826, 95% CI [0.55, 1.25], p = 0.365). Each additional year of age was associated with a decrease in the odds of achieving a better rank (OR = 1.001, 95% CI [0.99, 1.02]). In terms of predicted probabilities, switching from female to male decreased the probability of achieving rank 1 by approximately 4.2 percentage points.</p>
+<p>#Age also not significant??</p>
+<hr>
+</section>
+</section>
+<section id="bonus-probit-vs.-logit" class="level1">
+<h1>Bonus: Probit vs.&nbsp;Logit</h1>
+<section id="question-b.1-optional" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="question-b.1-optional">Question B.1 (optional)</h3>
+<p>Refit Model 2 using a probit link: <code>clm(Rank ~ Gender + Age, data = gb, link = "probit")</code>.</p>
+<p>Compare the coefficients to the logit version. Are the numbers different? Are the substantive conclusions different? In 2-3 sentences, explain why the numbers differ but the story stays the same.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1">m2_probit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clm</span>(Rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> Gender <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> Age, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> gb, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"probit"</span>)</span>
+<span id="cb66-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(m2_probit)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>formula: Rank ~ Gender + Age
+data:    gb
+
+ link   threshold nobs logLik  AIC    niter max.grad cond.H 
+ probit flexible  309  -338.87 685.74 5(0)  7.71e-12 2.9e+04
+
+Coefficients:
+         Estimate Std. Error z value Pr(&gt;|z|)
+GenderM -0.115742   0.128633  -0.900    0.368
+Age      0.003280   0.005483   0.598    0.550
+
+Threshold coefficients:
+    Estimate Std. Error z value
+3|2  -0.3785     0.2114  -1.790
+2|1   0.4939     0.2118   2.331</code></pre>
+</div>
+</div>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <guid>https://your-website-url.example.com/posts/lab_Feb25/Lab3_ordinal regression_DianaKim.html</guid>
+  <pubDate>Fri, 27 Feb 2026 05:00:00 GMT</pubDate>
+</item>
 <item>
   <title>my first post</title>
   <dc:creator>Diana Kim</dc:creator>
@@ -2886,7 +6085,7 @@ Tests are performed on the log odds ratio scale </code></pre>
 
  ]]></description>
   <guid>https://your-website-url.example.com/posts/lab_Feb11/Lab-Logistic-Questions_2026_DianaKim.html</guid>
-  <pubDate>Fri, 20 Feb 2026 15:55:07 GMT</pubDate>
+  <pubDate>Fri, 27 Feb 2026 21:08:07 GMT</pubDate>
   <media:content url="https://your-website-url.example.com/posts/lab_Feb11/polplot.png" medium="image" type="image/png" height="89" width="144"/>
 </item>
 <item>
@@ -4676,7 +7875,7 @@ loaded via a namespace (and not attached):
 
  ]]></description>
   <guid>https://your-website-url.example.com/posts/lab_Feb18/Bayes_Lab_1_Coins_DianaKim.html</guid>
-  <pubDate>Fri, 20 Feb 2026 15:55:07 GMT</pubDate>
+  <pubDate>Fri, 27 Feb 2026 21:08:07 GMT</pubDate>
 </item>
 </channel>
 </rss>
