@@ -2,7 +2,8 @@
 title: "Lab 3: Ordinal Regression"
 subtitle: "PSY 504: Advanced Statistics"
 author: "Yeaju Diana Kim"
-date: today
+date: "2026-02-27"
+date-modified: today
 format: 
   html:
     code-fold: true

@@ -1,14 +1,19 @@
 ---
 title: "my first post"
 description: "look at the cute monkey pic!"
-author: "Diana Kim"
+author: "Yeaju Diana Kim"
 date: "2026-01-28"
 date-modified: "2026-01-28"
 categories: [news, analysis]
 image: "YeajuKim_withAmonkey.jpg"
 ---
 
-## section 
+## section
+
+first, here's the monkey pic again.
+![](YeajuKim_withAmonkey.jpg)
+
+## another section
 
 haha This can work as my calculator.
 
@@ -17,14 +22,7 @@ haha This can work as my calculator.
 x <- 3
 
 y <- x * 9
-```
-
-
-## another section
-
-Today, we are designing a new blog.
-
-
-```{r}
 x ^ y
 ```
+
+

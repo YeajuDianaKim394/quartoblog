@@ -1,7 +1,9 @@
 ---
-title: "Lab: Logistic Regression"
-subtitle: "Princeton University"
-author: "Diana Kim"
+title: "Lab 1: Logistic Regression"
+subtitle: "PSY 504: Advanced Statistics"
+author: "Yeaju Diana Kim"
+date: "2026-02-14"
+date-modified: today
 output: 
   tufte::tufte_html:
     css: 

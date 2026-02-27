@@ -1,5 +1,9 @@
 ---
-title: "PSY 504 2026: Bayes Lab 1 — From Tables to MCMC"
+title: "Lab 2: Bayes 1 — From Tables to MCMC"
+subtitle: "PSY 504: Advanced Statistics"
+author: "Yeaju Diana Kim"
+date: "2026-02-20"
+date-modified: today
 format:
   html:
     code-fold: true
