@@ -1,8 +1,8 @@
 ---
     title: "Lab 4 - Multinomial Regression"
-    author:
-      - name: Suyog Chandramouli
-    date: last-modified
+    author: "Yeaju Diana Kim"
+    date: "2026-02-20"
+    date-modified: today
     format:
       html:
         self-contained: true
@@ -291,6 +291,15 @@ Pick one of those two blocks. The `(Intercept)` row is $\beta_0$ and the `age_ce
 # Enter your code
 tidy(final_model) %>% kable(digits = 3)
 exp(0.058)
+
+coef_age <- tidy(final_model) %>% 
+  dplyr::filter(term == "ppage_mc", y.level == "always")
+beta <- coef_age$estimate
+se <- coef_age$std.error
+lower <- exp(beta - 1.96 * se)
+upper <- exp(beta + 1.96 * se)
+c(lower, upper)
+exp(beta)
 ```
 
 > Enter your equation and interpretation here: (rarely/never vs. always) voter_category = 1.366 + 0.058 \* ppage_mc + (-0.341)\*raceHispanic + ... + (-0.162)\*pol_identRep
@@ -426,7 +435,7 @@ Replace `pol_ident` with `educ` in the `emmeans()` and `contrast()` calls.
 multi_an_educ <- emmeans(final_model, ~ educ | voter_category)
 
 # Contrasts on the log scale (log-odds differences between voter categories, within each education level group)
-coefs_educ <- contrast(regrid(multi_an_pol, "log"), "trt.vs.ctrl1", by = "educ")
+coefs_educ <- contrast(regrid(multi_an_educ, "log"), "trt.vs.ctrl1", by = "educ")
 
 # Display results, organized by contrast
 update(coefs_educ, by = "contrast") %>%
@@ -453,8 +462,4 @@ Write a **1-paragraph results section** for your final model. Your paragraph sho
 -   The result of the likelihood ratio test for at least one predictor
 -   At least one finding translated into predicted probability terms (from your plots)
 
-::: {.callout-warning collapse="true" title="Example write-up (from a different dataset)"}
-*We used a multinomial logistic regression model (baseline category: rarely/never) to predict voting frequency from age, race, gender, income, education, and political identification (N = \[n\]). The likelihood ratio test indicated that political identification was a significant predictor of voter category, χ²(\[df\]) = \[value\], p \< .001. Among \[comparison\], each additional year of age was associated with \[an increase/decrease\] in the odds of being \[category\] vs. rarely/never voting (OR = \[value\], 95% CI \[\[lower\], \[upper\]\]). Predicted probability plots showed that \[describe key pattern from your visualizations\].*
-:::
-
-> Enter your write-up here: \_\_\_\_
+> Enter your write-up here: We used a multinomial logistic regression model (baseline category: rarely/never) to predict voting frequency from age, race, gender, income, education, and political identification (N = 5,836). The likelihood ratio test indicated that political identification was a significant predictor of voter category, *χ²*(6) = 153.84, *p* \< .001. Among individuals in 'rarely/never' and 'always' groups, each additional year of age was associated with an increase in the odds of being always vs. rarely/never voting (OR = 1.060, 95% CI \[1.055, 1.065\]). Predicted probability plots showed that the probability of 'almost always' voting increases with age, while the probability of rarely or never voting decreases with age.
