@@ -10,7 +10,4474 @@
 <atom:link href="https://your-website-url.example.com/index.xml" rel="self" type="application/rss+xml"/>
 <description>A blog built with Quarto</description>
 <generator>quarto-1.8.24</generator>
-<lastBuildDate>Sat, 07 Mar 2026 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Wed, 18 Mar 2026 04:00:00 GMT</lastBuildDate>
+<item>
+  <title>Lab 5: Poisson Regression</title>
+  <dc:creator>Yeaju Diana Kim</dc:creator>
+  <link>https://your-website-url.example.com/posts/lab_Mar18/Lab_Poisson_Regression_Q.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="instructions" class="level2">
+<h2 class="anchored" data-anchor-id="instructions">Instructions</h2>
+<ul>
+<li>If you are fitting a model, display the model output in a neatly formatted table. (The <code>tidy()</code> and <code>kable()</code> functions can help!)</li>
+<li>If you are creating a plot, use clear labels for all axes, titles, etc.</li>
+<li>Commit and push your work to GitHub regularly, at least after each exercise. Write short and informative commit messages.</li>
+<li>When you’re done, we should be able to knit the final version of the QMD in your GitHub as an HTML.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Workflow tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Work through the lab by running chunks <strong>one at a time</strong> in RStudio (Cmd/Ctrl + Enter), not by rendering the whole document. Render only at the end, once all your code is working.</p>
+<p>This is how most R users actually work — you’d write a line, run it, check the output, and iterate. Rendering is for producing the final document. When you render, Quarto starts a fresh R session and runs every chunk top-to-bottom, so if anything is incomplete, everything downstream breaks. When you work interactively using chunks, your environment builds up as you go, so you always have your objects available to inspect and troubleshoot.</p>
+<p>The <strong>“Run All Chunks Above”</strong> button (downward arrow with a bar, next to the green play button in each chunk) is another useful tool. It re-runs everything from the top of the document up to your current chunk, so all your objects are up to date before you start working on the next question.</p>
+</div>
+</div>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyverse)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(MASS)</span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(naniar)</span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(skimr)</span>
+<span id="cb1-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(emmeans)</span>
+<span id="cb1-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggeffects)</span>
+<span id="cb1-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(easystats)</span>
+<span id="cb1-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(performance)</span>
+<span id="cb1-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(knitr)</span>
+<span id="cb1-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(modelsummary)</span>
+<span id="cb1-11"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(pscl)</span>
+<span id="cb1-12"></span>
+<span id="cb1-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">options</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">scipen =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">999</span>)</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="part-1-data-preparation-cleaning" class="level1">
+<h1>Part 1: Data Preparation &amp; Cleaning</h1>
+<p>This lab accompanies a pre-registration document. Download it here: <a href="https://github.com/suyoghc/PSY504_Spring_2026/raw/main/posts/Poisson/Lab_Poisson_Pre-Registration.pdf">Pre-Registration (PDF)</a>. Refer to Hypothesis (a) for the variables and analysis plan you’ll be implementing.</p>
+<p>The data come from the 2010 General Social Survey (GSS). As described in the pre-registration, we are testing whether the number of hours per week a person spends on the Internet (<code>wwwhr</code>) is predicted by their vocabulary (<code>wordsum</code>), age (<code>age</code>), sex (<code>sex</code>), religiosity (<code>reliten</code>), political orientation (<code>polviews</code>), and how often they work from home (<code>wrkhome</code>).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read_delim</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"https://raw.githubusercontent.com/jgeller112/psy504-advanced-stats/main/slides/Poisson/data/2010.csv"</span>)</span>
+<span id="cb2-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(data)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 801
+   mar1  mar2  mar3  mar4  mar5  mar6  mar7  mar8  mar9 mar11 mar12 abany
+  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+1     5     0     0     0     0     0     0     0     0     0     0     0
+2     5     0     0     0     0     0     0     0     0     0     0     0
+3     4     0     0     0     0     0     0     0     0     0     0     2
+4     2     0     0     0     0     0     0     0     0     0     0     0
+5     1     1     0     0     0     0     0     0     0     0     0     9
+6     5     0     0     0     0     0     0     0     0     0     0     0
+# ℹ 789 more variables: abdefect &lt;dbl&gt;, abhlth &lt;dbl&gt;, abnomore &lt;dbl&gt;,
+#   abpoor &lt;dbl&gt;, abrape &lt;dbl&gt;, absingle &lt;dbl&gt;, acqntsex &lt;dbl&gt;, adults &lt;dbl&gt;,
+#   advfront &lt;dbl&gt;, affrmact &lt;dbl&gt;, age &lt;dbl&gt;, aged &lt;dbl&gt;, agekdbrn &lt;dbl&gt;,
+#   astrolgy &lt;dbl&gt;, astrosci &lt;dbl&gt;, attend &lt;dbl&gt;, away1 &lt;dbl&gt;, away11 &lt;dbl&gt;,
+#   away2 &lt;dbl&gt;, away3 &lt;dbl&gt;, away4 &lt;dbl&gt;, away5 &lt;dbl&gt;, away6 &lt;dbl&gt;,
+#   away7 &lt;dbl&gt;, babies &lt;dbl&gt;, backpain &lt;dbl&gt;, balneg &lt;dbl&gt;, balpos &lt;dbl&gt;,
+#   betrlang &lt;dbl&gt;, bible &lt;dbl&gt;, bigbang &lt;dbl&gt;, bizbstgw &lt;dbl&gt;, …</code></pre>
+</div>
+</div>
+<p>The following code uses the <code>naniar</code> package to clean the data by replacing survey-coded missing values with <code>NA</code>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">data_pos <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-2">  dplyr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(wwwhr, wordsum, age, sex, reliten, polviews, wrkhome) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb4-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">replace_with_na</span>(.,</span>
+<span id="cb4-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">replace =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(</span>
+<span id="cb4-5">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">wwwhr =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">998</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">999</span>),</span>
+<span id="cb4-6">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">wordsum =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">99</span>),</span>
+<span id="cb4-7">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">reliten =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">9</span>),</span>
+<span id="cb4-8">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">polviews =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">9</span>),</span>
+<span id="cb4-9">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">wrkhome =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">9</span>),</span>
+<span id="cb4-10">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">age =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">98</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">99</span>)</span>
+<span id="cb4-11">    ))</span></code></pre></div></div>
+</div>
+<section id="exercise-1.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-1.1">Exercise 1.1</h3>
+<p>Explain what the <code>replace_with_na</code> code is doing. Why are values like -1, 998, and 999 being replaced? What would happen to your model if you left these values in the data?</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: GSS coding conventions">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: GSS coding conventions
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>In many large-scale surveys, numeric codes like -1, 98/99, 998/999 don’t represent real values. They’re placeholders for “inapplicable,” “don’t know,” or “no answer.” Check the GSS codebook if you want to see what each code means for each variable.</p>
+</div>
+</div>
+</div>
+<p>The values like -1, 998, and 999 are meaningful responses, so we’re replacing them with NA. If you don’t do this, the extreme numeric values will influence your statistics and predictions.</p>
+</section>
+<section id="exercise-1.2" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-1.2">Exercise 1.2</h3>
+<p>Recode <code>sex</code> and <code>reliten</code> as factors with meaningful labels. Should <code>reliten</code> be treated as ordered or nominal? Justify your choice.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Recoding">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Recoding
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>sex</code> is coded 1 = Male, 2 = Female in the GSS. For <code>reliten</code>, check the unique values after cleaning. You’ll need to decide whether to treat it as an ordered factor or collapse categories. Use <code>mutate()</code> with <code>factor()</code> or <code>case_when()</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">data_pos <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data_pos <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb5-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb5-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sex =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(sex,</span>
+<span id="cb5-4">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># -1 not 2</span></span>
+<span id="cb5-5">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">labels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Male"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Female"</span>)))</span>
+<span id="cb5-6"></span>
+<span id="cb5-7">data_pos <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data_pos <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb5-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb5-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">reliten_3f =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">case_when</span>(</span>
+<span id="cb5-10">      reliten <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Strong"</span>,</span>
+<span id="cb5-11">      reliten <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Moderate"</span>,</span>
+<span id="cb5-12">      reliten <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Moderate"</span>,</span>
+<span id="cb5-13">      reliten <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"No religion"</span></span>
+<span id="cb5-14">    ),</span>
+<span id="cb5-15">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">reliten_3f =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(reliten_3f,</span>
+<span id="cb5-16">                        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Strong"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Moderate"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"No religion"</span>),</span>
+<span id="cb5-17">                        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ordered =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb5-18">  )</span>
+<span id="cb5-19"></span>
+<span id="cb5-20"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">unique</span>(data_pos<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>reliten)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1]  1  4  3  2 NA</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">unique</span>(data_pos<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>reliten_3f)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] Strong      No religion Moderate    &lt;NA&gt;       
+Levels: Strong &lt; Moderate &lt; No religion</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(data_pos)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 8
+  wwwhr wordsum   age sex    reliten polviews wrkhome reliten_3f 
+  &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;fct&gt;    &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt; &lt;ord&gt;      
+1     3       6    31 Male         1        3       3 Strong     
+2    20       9    23 Female       4        2       4 No religion
+3    NA      NA    71 Female       1       NA      NA Strong     
+4    NA       3    82 Female       1        2      NA Strong     
+5    NA      NA    78 Female       1        3      NA Strong     
+6    NA      NA    40 Male         4        3      NA No religion</code></pre>
+</div>
+</div>
+<p>‘reliten’ seems like an ordinal variable, but the order and distance betweeen factors are unclear. I collapsed the two middle categories (i.e., not very strong, somewhat strong) to treat it as an ordinal variable.</p>
+</section>
+<section id="missingness" class="level2">
+<h2 class="anchored" data-anchor-id="missingness">Missingness</h2>
+<section id="exercise-1.3" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-1.3">Exercise 1.3</h3>
+<p>Inspect the cleaned data for missing values. How many complete cases do you have across all analysis variables? -&gt; 603 cases.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">skimr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">skim</span>(data_pos)</span></code></pre></div></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Data summary</caption>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Name</td>
+<td style="text-align: left;">data_pos</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Number of rows</td>
+<td style="text-align: left;">2044</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Number of columns</td>
+<td style="text-align: left;">8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">_______________________</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Column type frequency:</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">factor</td>
+<td style="text-align: left;">2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">numeric</td>
+<td style="text-align: left;">6</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">________________________</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Group variables</td>
+<td style="text-align: left;">None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: factor</strong></p>
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 11%">
+<col style="width: 16%">
+<col style="width: 9%">
+<col style="width: 10%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">skim_variable</th>
+<th style="text-align: right;">n_missing</th>
+<th style="text-align: right;">complete_rate</th>
+<th style="text-align: left;">ordered</th>
+<th style="text-align: right;">n_unique</th>
+<th style="text-align: left;">top_counts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">sex</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">Fem: 1153, Mal: 891</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">reliten_3f</td>
+<td style="text-align: right;">99</td>
+<td style="text-align: right;">0.95</td>
+<td style="text-align: left;">TRUE</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">Mod: 875, Str: 707, No : 363</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: numeric</strong></p>
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 13%">
+<col style="width: 18%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 3%">
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">skim_variable</th>
+<th style="text-align: right;">n_missing</th>
+<th style="text-align: right;">complete_rate</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">p0</th>
+<th style="text-align: right;">p25</th>
+<th style="text-align: right;">p50</th>
+<th style="text-align: right;">p75</th>
+<th style="text-align: right;">p100</th>
+<th style="text-align: left;">hist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">wwwhr</td>
+<td style="text-align: right;">996</td>
+<td style="text-align: right;">0.51</td>
+<td style="text-align: right;">9.79</td>
+<td style="text-align: right;">13.41</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">168</td>
+<td style="text-align: left;">▇▁▁▁▁</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">wordsum</td>
+<td style="text-align: right;">657</td>
+<td style="text-align: right;">0.68</td>
+<td style="text-align: right;">6.03</td>
+<td style="text-align: right;">2.07</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: left;">▁▃▇▅▂</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">age</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">47.97</td>
+<td style="text-align: right;">17.68</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">33</td>
+<td style="text-align: right;">47</td>
+<td style="text-align: right;">61</td>
+<td style="text-align: right;">89</td>
+<td style="text-align: left;">▇▇▇▅▃</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">reliten</td>
+<td style="text-align: right;">99</td>
+<td style="text-align: right;">0.95</td>
+<td style="text-align: right;">2.08</td>
+<td style="text-align: right;">1.08</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">▇▇▁▂▃</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">polviews</td>
+<td style="text-align: right;">71</td>
+<td style="text-align: right;">0.97</td>
+<td style="text-align: right;">4.08</td>
+<td style="text-align: right;">1.46</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: left;">▃▂▇▃▅</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">wrkhome</td>
+<td style="text-align: right;">882</td>
+<td style="text-align: right;">0.57</td>
+<td style="text-align: right;">2.26</td>
+<td style="text-align: right;">1.72</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">▇▁▁▂▁</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">complete.cases</span>(data_pos))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 603</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">data_pos <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data_pos[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">complete.cases</span>(data_pos), ]</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-2-fitting-a-poisson-model" class="level1">
+<h1>Part 2: Fitting a Poisson Model</h1>
+<section id="mini-tutorial-fitting-and-reading-a-poisson-model" class="level2">
+<h2 class="anchored" data-anchor-id="mini-tutorial-fitting-and-reading-a-poisson-model">Mini-tutorial: Fitting and reading a Poisson model</h2>
+<p>Before you fit your model on the GSS data, here is a worked example on a toy dataset so you can see the full workflow.</p>
+<p><strong>Toy data:</strong></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">toy <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb15-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">visits =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>),</span>
+<span id="cb15-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">age =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">22</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">35</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">55</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">28</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">45</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">33</span>)</span>
+<span id="cb15-4">)</span></code></pre></div></div>
+</div>
+<p><strong>Fit the model:</strong></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1">toy_model <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glm</span>(visits <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> age, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">poisson</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"log"</span>))</span></code></pre></div></div>
+</div>
+<p><strong>Read the output on the log scale.</strong> These coefficients are on the log-count scale. The intercept is the log of the expected count when age = 0. The slope is the change in log-count for a one-year increase in age.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model_parameters</span>(toy_model) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">print_html</span>()</span></code></pre></div></div>
+<div class="cell-output-display">
+<div id="xtcianvofz" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#xtcianvofz table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#xtcianvofz thead, #xtcianvofz tbody, #xtcianvofz tfoot, #xtcianvofz tr, #xtcianvofz td, #xtcianvofz th {
+  border-style: none;
+}
+
+#xtcianvofz p {
+  margin: 0;
+  padding: 0;
+}
+
+#xtcianvofz .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 100%;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#xtcianvofz .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#xtcianvofz .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#xtcianvofz .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#xtcianvofz .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#xtcianvofz .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#xtcianvofz .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#xtcianvofz .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#xtcianvofz .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#xtcianvofz .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#xtcianvofz .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#xtcianvofz .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#xtcianvofz .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#xtcianvofz .gt_row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#xtcianvofz .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xtcianvofz .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#xtcianvofz .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#xtcianvofz .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#xtcianvofz .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xtcianvofz .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#xtcianvofz .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xtcianvofz .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#xtcianvofz .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xtcianvofz .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#xtcianvofz .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xtcianvofz .gt_left {
+  text-align: left;
+}
+
+#xtcianvofz .gt_center {
+  text-align: center;
+}
+
+#xtcianvofz .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#xtcianvofz .gt_font_normal {
+  font-weight: normal;
+}
+
+#xtcianvofz .gt_font_bold {
+  font-weight: bold;
+}
+
+#xtcianvofz .gt_font_italic {
+  font-style: italic;
+}
+
+#xtcianvofz .gt_super {
+  font-size: 65%;
+}
+
+#xtcianvofz .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#xtcianvofz .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#xtcianvofz .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#xtcianvofz .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#xtcianvofz .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#xtcianvofz .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#xtcianvofz .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#xtcianvofz .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#xtcianvofz div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Parameter" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Parameter</th>
+<th id="Coefficient" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">Coefficient</th>
+<th id="SE" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">SE</th>
+<th id="a95%-CI" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">95% CI</th>
+<th id="z" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">z</th>
+<th id="p" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">p</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">(Intercept)</td>
+<td class="gt_row gt_center" headers="Coefficient">-1.43</td>
+<td class="gt_row gt_center" headers="SE">0.71</td>
+<td class="gt_row gt_center" headers="95% CI">(-2.95, -0.14)</td>
+<td class="gt_row gt_center" headers="z">-2.01</td>
+<td class="gt_row gt_center" headers="p">0.044</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">age</td>
+<td class="gt_row gt_center" headers="Coefficient">0.06</td>
+<td class="gt_row gt_center" headers="SE">0.01</td>
+<td class="gt_row gt_center" headers="95% CI">(0.03, 0.09)</td>
+<td class="gt_row gt_center" headers="z">3.91</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><strong>Exponentiate to get IRRs.</strong> Now the intercept is the expected count when age = 0, and the slope is the incidence rate ratio — the multiplicative change in the expected count per one-year increase in age.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model_parameters</span>(toy_model, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">exponentiate =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">print_html</span>()</span></code></pre></div></div>
+<div class="cell-output-display">
+<div id="epulydwvkx" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#epulydwvkx table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#epulydwvkx thead, #epulydwvkx tbody, #epulydwvkx tfoot, #epulydwvkx tr, #epulydwvkx td, #epulydwvkx th {
+  border-style: none;
+}
+
+#epulydwvkx p {
+  margin: 0;
+  padding: 0;
+}
+
+#epulydwvkx .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 100%;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#epulydwvkx .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#epulydwvkx .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#epulydwvkx .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#epulydwvkx .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#epulydwvkx .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#epulydwvkx .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#epulydwvkx .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#epulydwvkx .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#epulydwvkx .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#epulydwvkx .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#epulydwvkx .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#epulydwvkx .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#epulydwvkx .gt_row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#epulydwvkx .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#epulydwvkx .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#epulydwvkx .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#epulydwvkx .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#epulydwvkx .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#epulydwvkx .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#epulydwvkx .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#epulydwvkx .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#epulydwvkx .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#epulydwvkx .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#epulydwvkx .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#epulydwvkx .gt_left {
+  text-align: left;
+}
+
+#epulydwvkx .gt_center {
+  text-align: center;
+}
+
+#epulydwvkx .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#epulydwvkx .gt_font_normal {
+  font-weight: normal;
+}
+
+#epulydwvkx .gt_font_bold {
+  font-weight: bold;
+}
+
+#epulydwvkx .gt_font_italic {
+  font-style: italic;
+}
+
+#epulydwvkx .gt_super {
+  font-size: 65%;
+}
+
+#epulydwvkx .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#epulydwvkx .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#epulydwvkx .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#epulydwvkx .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#epulydwvkx .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#epulydwvkx .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#epulydwvkx .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#epulydwvkx .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#epulydwvkx div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Parameter" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Parameter</th>
+<th id="Coefficient" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">Coefficient</th>
+<th id="SE" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">SE</th>
+<th id="a95%-CI" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">95% CI</th>
+<th id="z" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">z</th>
+<th id="p" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">p</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">(Intercept)</td>
+<td class="gt_row gt_center" headers="Coefficient">0.24</td>
+<td class="gt_row gt_center" headers="SE">0.17</td>
+<td class="gt_row gt_center" headers="95% CI">(0.05, 0.87)</td>
+<td class="gt_row gt_center" headers="z">-2.01</td>
+<td class="gt_row gt_center" headers="p">0.044</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">age</td>
+<td class="gt_row gt_center" headers="Coefficient">1.06</td>
+<td class="gt_row gt_center" headers="SE">0.02</td>
+<td class="gt_row gt_center" headers="95% CI">(1.03, 1.09)</td>
+<td class="gt_row gt_center" headers="z">3.91</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p><strong>Get a predicted count.</strong> This is the model’s predicted number of visits for a 40-year-old, back on the count scale.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(toy_model, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">newdata =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">age =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">40</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"response"</span>)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       1 
+2.394034 </code></pre>
+</div>
+</div>
+<p>Now apply this workflow to the GSS data.</p>
+<section id="exercise-2.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-2.1">Exercise 2.1</h3>
+<p>Fit a Poisson regression model predicting <code>wwwhr</code> from the predictors listed in the pre-registration. Display the results in a formatted table.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: glm() syntax">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: glm() syntax
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The key argument is <code>family = poisson(link = "log")</code>. Use <code>model_parameters() %&gt;% print_html()</code> or <code>tidy() %&gt;% kable()</code> for a clean table.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1">wwwhr_model <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glm</span>(wwwhr <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> wordsum <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> age <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> sex <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> reliten_3f <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> polviews <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> wrkhome, </span>
+<span id="cb21-2">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> data_pos, </span>
+<span id="cb21-3">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">poisson</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"log"</span>))</span>
+<span id="cb21-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model_parameters</span>(wwwhr_model) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">print_html</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div id="ighaeaettv" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ighaeaettv table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#ighaeaettv thead, #ighaeaettv tbody, #ighaeaettv tfoot, #ighaeaettv tr, #ighaeaettv td, #ighaeaettv th {
+  border-style: none;
+}
+
+#ighaeaettv p {
+  margin: 0;
+  padding: 0;
+}
+
+#ighaeaettv .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 100%;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#ighaeaettv .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ighaeaettv .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ighaeaettv .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ighaeaettv .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ighaeaettv .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ighaeaettv .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ighaeaettv .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ighaeaettv .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#ighaeaettv .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#ighaeaettv .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ighaeaettv .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ighaeaettv .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ighaeaettv .gt_row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ighaeaettv .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ighaeaettv .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#ighaeaettv .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#ighaeaettv .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#ighaeaettv .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ighaeaettv .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#ighaeaettv .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ighaeaettv .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#ighaeaettv .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ighaeaettv .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ighaeaettv .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ighaeaettv .gt_left {
+  text-align: left;
+}
+
+#ighaeaettv .gt_center {
+  text-align: center;
+}
+
+#ighaeaettv .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ighaeaettv .gt_font_normal {
+  font-weight: normal;
+}
+
+#ighaeaettv .gt_font_bold {
+  font-weight: bold;
+}
+
+#ighaeaettv .gt_font_italic {
+  font-style: italic;
+}
+
+#ighaeaettv .gt_super {
+  font-size: 65%;
+}
+
+#ighaeaettv .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#ighaeaettv .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#ighaeaettv .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#ighaeaettv .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#ighaeaettv .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#ighaeaettv .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#ighaeaettv .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#ighaeaettv .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#ighaeaettv div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Parameter" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Parameter</th>
+<th id="Coefficient" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">Coefficient</th>
+<th id="SE" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">SE</th>
+<th id="a95%-CI" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">95% CI</th>
+<th id="z" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">z</th>
+<th id="p" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">p</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">(Intercept)</td>
+<td class="gt_row gt_center" headers="Coefficient">2.34</td>
+<td class="gt_row gt_center" headers="SE">0.07</td>
+<td class="gt_row gt_center" headers="95% CI">(2.20, 2.48)</td>
+<td class="gt_row gt_center" headers="z">32.18</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">wordsum</td>
+<td class="gt_row gt_center" headers="Coefficient">0.10</td>
+<td class="gt_row gt_center" headers="SE">7.80e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(0.09, 0.12)</td>
+<td class="gt_row gt_center" headers="z">13.08</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">age</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.02</td>
+<td class="gt_row gt_center" headers="SE">1.08e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.02, -0.01)</td>
+<td class="gt_row gt_center" headers="z">-15.37</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">sex (Female)</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.25</td>
+<td class="gt_row gt_center" headers="SE">0.03</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.30, -0.20)</td>
+<td class="gt_row gt_center" headers="z">-9.36</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">reliten 3f (linear)</td>
+<td class="gt_row gt_center" headers="Coefficient">0.47</td>
+<td class="gt_row gt_center" headers="SE">0.03</td>
+<td class="gt_row gt_center" headers="95% CI">(0.41, 0.52)</td>
+<td class="gt_row gt_center" headers="z">16.80</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">reliten 3f (quadratic)</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.02</td>
+<td class="gt_row gt_center" headers="SE">0.02</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.06, 0.03)</td>
+<td class="gt_row gt_center" headers="z">-0.80</td>
+<td class="gt_row gt_center" headers="p">0.423</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">polviews</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.03</td>
+<td class="gt_row gt_center" headers="SE">9.76e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.05, -0.01)</td>
+<td class="gt_row gt_center" headers="z">-3.30</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">wrkhome</td>
+<td class="gt_row gt_center" headers="Coefficient">0.08</td>
+<td class="gt_row gt_center" headers="SE">7.66e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(0.06, 0.09)</td>
+<td class="gt_row gt_center" headers="z">10.29</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model_parameters</span>(wwwhr_model, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">exponentiate =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">print_html</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div id="ludbitoofb" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ludbitoofb table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#ludbitoofb thead, #ludbitoofb tbody, #ludbitoofb tfoot, #ludbitoofb tr, #ludbitoofb td, #ludbitoofb th {
+  border-style: none;
+}
+
+#ludbitoofb p {
+  margin: 0;
+  padding: 0;
+}
+
+#ludbitoofb .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 100%;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#ludbitoofb .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ludbitoofb .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ludbitoofb .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ludbitoofb .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ludbitoofb .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ludbitoofb .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ludbitoofb .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ludbitoofb .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#ludbitoofb .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#ludbitoofb .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ludbitoofb .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ludbitoofb .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ludbitoofb .gt_row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ludbitoofb .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ludbitoofb .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#ludbitoofb .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#ludbitoofb .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#ludbitoofb .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ludbitoofb .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#ludbitoofb .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ludbitoofb .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#ludbitoofb .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ludbitoofb .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ludbitoofb .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ludbitoofb .gt_left {
+  text-align: left;
+}
+
+#ludbitoofb .gt_center {
+  text-align: center;
+}
+
+#ludbitoofb .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ludbitoofb .gt_font_normal {
+  font-weight: normal;
+}
+
+#ludbitoofb .gt_font_bold {
+  font-weight: bold;
+}
+
+#ludbitoofb .gt_font_italic {
+  font-style: italic;
+}
+
+#ludbitoofb .gt_super {
+  font-size: 65%;
+}
+
+#ludbitoofb .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#ludbitoofb .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#ludbitoofb .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#ludbitoofb .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#ludbitoofb .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#ludbitoofb .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#ludbitoofb .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#ludbitoofb .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#ludbitoofb div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Parameter" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Parameter</th>
+<th id="Coefficient" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">Coefficient</th>
+<th id="SE" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">SE</th>
+<th id="a95%-CI" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">95% CI</th>
+<th id="z" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">z</th>
+<th id="p" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">p</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">(Intercept)</td>
+<td class="gt_row gt_center" headers="Coefficient">10.38</td>
+<td class="gt_row gt_center" headers="SE">0.75</td>
+<td class="gt_row gt_center" headers="95% CI">(9.00, 11.96)</td>
+<td class="gt_row gt_center" headers="z">32.18</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">wordsum</td>
+<td class="gt_row gt_center" headers="Coefficient">1.11</td>
+<td class="gt_row gt_center" headers="SE">8.64e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(1.09, 1.12)</td>
+<td class="gt_row gt_center" headers="z">13.08</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">age</td>
+<td class="gt_row gt_center" headers="Coefficient">0.98</td>
+<td class="gt_row gt_center" headers="SE">1.07e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(0.98, 0.99)</td>
+<td class="gt_row gt_center" headers="z">-15.37</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">sex (Female)</td>
+<td class="gt_row gt_center" headers="Coefficient">0.78</td>
+<td class="gt_row gt_center" headers="SE">0.02</td>
+<td class="gt_row gt_center" headers="95% CI">(0.74, 0.82)</td>
+<td class="gt_row gt_center" headers="z">-9.36</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">reliten 3f (linear)</td>
+<td class="gt_row gt_center" headers="Coefficient">1.59</td>
+<td class="gt_row gt_center" headers="SE">0.04</td>
+<td class="gt_row gt_center" headers="95% CI">(1.51, 1.68)</td>
+<td class="gt_row gt_center" headers="z">16.80</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">reliten 3f (quadratic)</td>
+<td class="gt_row gt_center" headers="Coefficient">0.98</td>
+<td class="gt_row gt_center" headers="SE">0.02</td>
+<td class="gt_row gt_center" headers="95% CI">(0.94, 1.03)</td>
+<td class="gt_row gt_center" headers="z">-0.80</td>
+<td class="gt_row gt_center" headers="p">0.423</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">polviews</td>
+<td class="gt_row gt_center" headers="Coefficient">0.97</td>
+<td class="gt_row gt_center" headers="SE">9.45e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(0.95, 0.99)</td>
+<td class="gt_row gt_center" headers="z">-3.30</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">wrkhome</td>
+<td class="gt_row gt_center" headers="Coefficient">1.08</td>
+<td class="gt_row gt_center" headers="SE">8.29e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(1.07, 1.10)</td>
+<td class="gt_row gt_center" headers="z">10.29</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="exercise-2.2" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-2.2">Exercise 2.2</h3>
+<p>Pick one observation from your data. Using the coefficients from your fitted model, manually compute the predicted count for that observation. Show your work, then confirm it matches the output of <code>predict(model, type = "response")</code> for that row.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: From log-counts to counts">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: From log-counts to counts
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The model estimates log(λ). So the predicted log-count for observation <em>i</em> is β₀ + β₁x₁ + β₂x₂ + … Exponentiate to get the predicted count: λ = exp(β₀ + β₁x₁ + …). Use <code>coef(model)</code> to extract the coefficients.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># row &lt;- data_pos[300, ]</span></span>
+<span id="cb23-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># data_pos[300, 'sex']</span></span>
+<span id="cb23-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># data_pos[300, 'reliten_3f']</span></span>
+<span id="cb23-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># model.matrix(wwwhr_model)[300, 'reliten_3f.L']</span></span>
+<span id="cb23-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># </span></span>
+<span id="cb23-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># coef(wwwhr_model)</span></span>
+<span id="cb23-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta0 &lt;- 2.33971674</span></span>
+<span id="cb23-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_wordsum &lt;- 0.10202749</span></span>
+<span id="cb23-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_age &lt;- -0.01667169</span></span>
+<span id="cb23-10"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_sexF &lt;- -0.24748598</span></span>
+<span id="cb23-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_reliten3fL &lt;- 0.46681384</span></span>
+<span id="cb23-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_reliten3fQ &lt;- -0.01783327</span></span>
+<span id="cb23-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_polviews &lt;- -0.03220420</span></span>
+<span id="cb23-14"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># beta_wrkhome &lt;- 0.07881938</span></span>
+<span id="cb23-15"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># </span></span>
+<span id="cb23-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># logcount &lt;- beta0 + beta_wordsum*row$wordsum + beta_age*row$age +</span></span>
+<span id="cb23-17"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   beta_sexF*0 + beta_reliten3fL*model.matrix(wwwhr_model)[300, 'reliten_3f.L'] + </span></span>
+<span id="cb23-18"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   beta_reliten3fQ*model.matrix(wwwhr_model)[300, 'reliten_3f.Q'] + </span></span>
+<span id="cb23-19"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#   beta_polviews*row$polviews + beta_wrkhome*row$wrkhome</span></span>
+<span id="cb23-20"></span>
+<span id="cb23-21">logcount <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(wwwhr_model) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model.matrix</span>(wwwhr_model)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">300</span>, ])</span>
+<span id="cb23-22"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">exp</span>(logcount)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 8.174197</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(wwwhr_model, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"response"</span>)[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">300</span>]</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>     300 
+8.174197 </code></pre>
+</div>
+</div>
+<p>It didn’t match when I literally hand calculated the log count.. but the simpler way worked.</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-3-model-diagnostics" class="level1">
+<h1>Part 3: Model Diagnostics</h1>
+<section id="exercise-3.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-3.1">Exercise 3.1</h3>
+<p>Use the <code>performance</code> package to check your model. For each diagnostic panel, state what it’s testing and whether your model passes or fails.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Which function?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Which function?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>performance::check_model()</code> produces a panel of diagnostic plots. You can select specific checks with the <code>check</code> argument — e.g., <code>check = c("pp_check", "outliers", "overdispersion")</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1">performance<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">check_model</span>(wwwhr_model)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar18/Lab_Poisson_Regression_Q_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<ol type="1">
+<li>Posterior predictive check - checks whether the model produces the actual distribution of the observed data. The green dots are widely spread outside of the blue distribution. It fails..</li>
+<li>Misspecified dispersion and zero inflation - checks whether the mean is similar enough with the variance. The observed variance is much larger than expected. It fails..</li>
+<li>Homogeneity of variance - checks whether residual variance is constant across fitted values. There’s a overall upward trend. It fails..</li>
+<li>Influential observations - checks if any of the observations in the data was too influential and biased the model. Few dots are outside the lines so Pass?</li>
+<li>Collinearity - checks whether the predictors were highly correlated. VIF values are under 2. Pass!</li>
+<li>Distribution of quantile residuals - checks whether residuals follow the expected distribution. It deviates a lot from the reference line. It fails..</li>
+</ol>
+</section>
+<section id="exercise-3.2" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-3.2">Exercise 3.2</h3>
+<p>Identify outliers. How many observations are flagged, and what makes them outlying: high residuals, high leverage, or both?</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Outlier detection">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Outlier detection
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>performance::check_outliers()</code> returns a logical vector you can use to filter your data. Try <code>which()</code> or <code>sum()</code> to count the flagged cases.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1">outliers <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> performance<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">check_outliers</span>(wwwhr_model)</span>
+<span id="cb28-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">which</span>(outliers)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1]  72 156 363</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(outliers)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 3</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1">outliers</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>3 outliers detected: cases 72, 156, 363.
+- Based on the following method and threshold: cook (0.9).
+- For variable: (Whole model).</code></pre>
+</div>
+</div>
+<p>Three outliers are detected. High Cook’s distances indicate both high residuals and high leverage.</p>
+</section>
+<section id="exercise-3.3" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-3.3">Exercise 3.3</h3>
+<p>Refit the model without the outliers. Compare the two coefficient tables: which estimates changed substantively, and does the overall story change?</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Filtering">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Filtering
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Store the outlier check as an object, then use it to index your data: <code>data_clean &lt;- data_pos[!outlier_flag, ]</code>. Refit the same <code>glm()</code> call on the filtered data and compare with <code>model_parameters()</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1">outliers_flag <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.logical</span>(outliers)</span>
+<span id="cb34-2">data_clean <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data_pos[<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">!</span>outliers_flag, ]</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1">wwwhr_clean <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glm</span>(wwwhr <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> wordsum <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> age <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> sex <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> reliten_3f <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> polviews <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> wrkhome, </span>
+<span id="cb35-2">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> data_clean, </span>
+<span id="cb35-3">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">poisson</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"log"</span>))</span>
+<span id="cb35-4"></span>
+<span id="cb35-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model_parameters</span>(wwwhr_clean) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">print_html</span>()</span></code></pre></div></div>
+</details>
+</div>
+<p>Polviews coefficient is not significant anymore. Also the effect of sex and wrkhome decreased a lot. Now it seems that several predictors were weaker than expected before, and political views are not related with internet usage.</p>
+<hr>
+</section>
+</section>
+<section id="part-4-overdispersion-alternative-models" class="level1">
+<h1>Part 4: Overdispersion &amp; Alternative Models</h1>
+<section id="exercise-4.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-4.1">Exercise 4.1</h3>
+<p>Check for overdispersion and report the dispersion ratio. What specific property of the Poisson distribution is violated when the ratio is much greater than 1?</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Checking overdispersion">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Checking overdispersion
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>performance::check_overdispersion()</code> returns a dispersion ratio and a p-value. A ratio near 1 means the Poisson assumption holds.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1">wwwhr_clean <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glm</span>(wwwhr <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> wordsum <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> age <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> sex <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> reliten_3f <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> polviews <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> wrkhome, </span>
+<span id="cb36-2">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> data_clean, </span>
+<span id="cb36-3">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">poisson</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">link =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"log"</span>))</span>
+<span id="cb36-4"></span>
+<span id="cb36-5">performance<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">check_overdispersion</span>(wwwhr_clean)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># Overdispersion test
+
+       dispersion ratio =   12.119
+  Pearson's Chi-Squared = 7174.518
+                p-value =  &lt; 0.001</code></pre>
+</div>
+</div>
+<p>Oh no, dispersion ratio is 12.119. It violates the assumption that the variance of the outcome equals the mean.</p>
+</section>
+<section id="exercise-4.2" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-4.2">Exercise 4.2</h3>
+<p>Given the overdispersion you found, name a model family that can handle it and explain in 1–2 sentences why it works. Then fit that model to the data and display the results.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: An extra parameter">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: An extra parameter
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The Poisson model has no separate parameter for variance. What if you had a model that added one? Check the <code>MASS</code> package.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1">wwwhr_nb <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glm.nb</span>(wwwhr <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> wordsum <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> age <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> sex <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> reliten_3f <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> polviews <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> wrkhome, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> data_clean)</span>
+<span id="cb38-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">model_parameters</span>(wwwhr_nb) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">print_html</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div id="piszxfatsk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#piszxfatsk table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#piszxfatsk thead, #piszxfatsk tbody, #piszxfatsk tfoot, #piszxfatsk tr, #piszxfatsk td, #piszxfatsk th {
+  border-style: none;
+}
+
+#piszxfatsk p {
+  margin: 0;
+  padding: 0;
+}
+
+#piszxfatsk .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 100%;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#piszxfatsk .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#piszxfatsk .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#piszxfatsk .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#piszxfatsk .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#piszxfatsk .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#piszxfatsk .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#piszxfatsk .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#piszxfatsk .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#piszxfatsk .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#piszxfatsk .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#piszxfatsk .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#piszxfatsk .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#piszxfatsk .gt_row {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#piszxfatsk .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#piszxfatsk .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#piszxfatsk .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#piszxfatsk .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#piszxfatsk .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#piszxfatsk .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#piszxfatsk .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#piszxfatsk .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#piszxfatsk .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#piszxfatsk .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#piszxfatsk .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#piszxfatsk .gt_left {
+  text-align: left;
+}
+
+#piszxfatsk .gt_center {
+  text-align: center;
+}
+
+#piszxfatsk .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#piszxfatsk .gt_font_normal {
+  font-weight: normal;
+}
+
+#piszxfatsk .gt_font_bold {
+  font-weight: bold;
+}
+
+#piszxfatsk .gt_font_italic {
+  font-style: italic;
+}
+
+#piszxfatsk .gt_super {
+  font-size: 65%;
+}
+
+#piszxfatsk .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#piszxfatsk .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#piszxfatsk .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#piszxfatsk .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#piszxfatsk .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#piszxfatsk .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#piszxfatsk .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#piszxfatsk .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#piszxfatsk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Parameter" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Parameter</th>
+<th id="Coefficient" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">Coefficient</th>
+<th id="SE" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">SE</th>
+<th id="a95%-CI" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">95% CI</th>
+<th id="z" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">z</th>
+<th id="p" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col">p</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">(Intercept)</td>
+<td class="gt_row gt_center" headers="Coefficient">2.22</td>
+<td class="gt_row gt_center" headers="SE">0.24</td>
+<td class="gt_row gt_center" headers="95% CI">(1.74, 2.70)</td>
+<td class="gt_row gt_center" headers="z">9.28</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">wordsum</td>
+<td class="gt_row gt_center" headers="Coefficient">0.10</td>
+<td class="gt_row gt_center" headers="SE">0.03</td>
+<td class="gt_row gt_center" headers="95% CI">(0.05, 0.15)</td>
+<td class="gt_row gt_center" headers="z">3.86</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">age</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.01</td>
+<td class="gt_row gt_center" headers="SE">3.47e-03</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.02, -7.18e-03)</td>
+<td class="gt_row gt_center" headers="z">-4.09</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">sex (Female)</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.14</td>
+<td class="gt_row gt_center" headers="SE">0.09</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.31, 0.04)</td>
+<td class="gt_row gt_center" headers="z">-1.54</td>
+<td class="gt_row gt_center" headers="p">0.123</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">reliten 3f (linear)</td>
+<td class="gt_row gt_center" headers="Coefficient">0.42</td>
+<td class="gt_row gt_center" headers="SE">0.09</td>
+<td class="gt_row gt_center" headers="95% CI">(0.25, 0.60)</td>
+<td class="gt_row gt_center" headers="z">4.74</td>
+<td class="gt_row gt_center" headers="p">&lt; .001</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">reliten 3f (quadratic)</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.02</td>
+<td class="gt_row gt_center" headers="SE">0.07</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.16, 0.12)</td>
+<td class="gt_row gt_center" headers="z">-0.24</td>
+<td class="gt_row gt_center" headers="p">0.809</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">polviews</td>
+<td class="gt_row gt_center" headers="Coefficient">-0.02</td>
+<td class="gt_row gt_center" headers="SE">0.03</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.08, 0.05)</td>
+<td class="gt_row gt_center" headers="z">-0.47</td>
+<td class="gt_row gt_center" headers="p">0.640</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="Parameter" style="border-right-width: 1px; border-right-style: solid; border-right-color: #d3d3d3">wrkhome</td>
+<td class="gt_row gt_center" headers="Coefficient">0.03</td>
+<td class="gt_row gt_center" headers="SE">0.03</td>
+<td class="gt_row gt_center" headers="95% CI">(-0.02, 0.08)</td>
+<td class="gt_row gt_center" headers="z">1.06</td>
+<td class="gt_row gt_center" headers="p">0.290</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>We need a negative binomial model. It adds an additional parameter that allows the variance to exceed the mean.</p>
+<hr>
+</section>
+</section>
+<section id="part-5-model-comparison" class="level1">
+<h1>Part 5: Model Comparison</h1>
+<section id="exercise-5.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-5.1">Exercise 5.1</h3>
+<p>Compare your Poisson and negative binomial models using a likelihood ratio test and a comparison table. Interpret the test result and the AIC/BIC values. What do they tell you about relative model fit?</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Two ways to compare">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-11-contents" aria-controls="callout-11" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Two ways to compare
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-11" class="callout-11-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>performance::test_likelihoodratio()</code> gives you a formal test. For a publication-style table, use <code>modelsummary(list("Poisson" = m1, "Neg. Binomial" = m2), exponentiate = TRUE, stars = TRUE)</code>. AIC/BIC are reported automatically.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1">performance<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">test_likelihoodratio</span>(wwwhr_clean, wwwhr_nb)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># Likelihood-Ratio-Test (LRT) for Model Comparison (ML-estimator)
+
+Name        |  Model | df | df_diff |    Chi2 |      p
+------------------------------------------------------
+wwwhr_clean |    glm |  8 |         |         |       
+wwwhr_nb    | negbin |  9 |       1 | 3850.62 | &lt; .001</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">modelsummary</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Poisson"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> wwwhr_clean, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Neg. Binomial"</span> <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span> wwwhr_nb), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">exponentiate =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">stars =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<!-- preamble start -->
+
+    <script src="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.js"></script>
+
+    <script>
+      // Create table-specific functions using external factory
+      const tableFns_y3c79ezfr9xsubvg593a = TinyTable.createTableFunctions("tinytable_y3c79ezfr9xsubvg593a");
+      // tinytable span after
+      window.addEventListener('load', function () {
+          var cellsToStyle = [
+            // tinytable style arrays after
+          { positions: [ { i: '22', j: 2 }, { i: '22', j: 3 } ], css_id: 'tinytable_css_dgjddxz9kfqctischbxy',}, 
+          { positions: [ { i: '16', j: 2 }, { i: '16', j: 3 } ], css_id: 'tinytable_css_rg4rxjhy8z5qua21bz1w',}, 
+          { positions: [ { i: '1', j: 2 }, { i: '2', j: 2 }, { i: '3', j: 2 }, { i: '4', j: 2 }, { i: '5', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '8', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '19', j: 2 }, { i: '20', j: 2 }, { i: '21', j: 2 }, { i: '1', j: 3 }, { i: '2', j: 3 }, { i: '3', j: 3 }, { i: '4', j: 3 }, { i: '5', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '8', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '19', j: 3 }, { i: '20', j: 3 }, { i: '21', j: 3 } ], css_id: 'tinytable_css_1g1vhtyya9wk1luk6kmx',}, 
+          { positions: [ { i: '0', j: 2 }, { i: '0', j: 3 } ], css_id: 'tinytable_css_4b12bp9bokwkz2wwxz24',}, 
+          { positions: [ { i: '22', j: 1 } ], css_id: 'tinytable_css_3q6u26r23sbpsldic5sy',}, 
+          { positions: [ { i: '16', j: 1 } ], css_id: 'tinytable_css_5b54aoux8f75cu46xlib',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '2', j: 1 }, { i: '3', j: 1 }, { i: '4', j: 1 }, { i: '5', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '8', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '19', j: 1 }, { i: '20', j: 1 }, { i: '21', j: 1 } ], css_id: 'tinytable_css_wc0zxv0909pqgxcu2r6t',}, 
+          { positions: [ { i: '0', j: 1 } ], css_id: 'tinytable_css_x4vg0kjumf5e23xxd7bp',}, 
+          ];
+
+          // Loop over the arrays to style the cells
+          cellsToStyle.forEach(function (group) {
+              group.positions.forEach(function (cell) {
+                  tableFns_y3c79ezfr9xsubvg593a.styleCell(cell.i, cell.j, group.css_id);
+              });
+          });
+      });
+    </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/vincentarelbundock/tinytable@main/inst/tinytable.css">
+    <style>
+    /* tinytable css entries after */
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_dgjddxz9kfqctischbxy, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_dgjddxz9kfqctischbxy {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_rg4rxjhy8z5qua21bz1w, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_rg4rxjhy8z5qua21bz1w {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_1g1vhtyya9wk1luk6kmx, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_1g1vhtyya9wk1luk6kmx { text-align: center }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_4b12bp9bokwkz2wwxz24, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_4b12bp9bokwkz2wwxz24 {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: center }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_3q6u26r23sbpsldic5sy, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_3q6u26r23sbpsldic5sy {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.08em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_5b54aoux8f75cu46xlib, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_5b54aoux8f75cu46xlib {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_wc0zxv0909pqgxcu2r6t, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_wc0zxv0909pqgxcu2r6t { text-align: left }
+    #tinytable_y3c79ezfr9xsubvg593a td.tinytable_css_x4vg0kjumf5e23xxd7bp, #tinytable_y3c79ezfr9xsubvg593a th.tinytable_css_x4vg0kjumf5e23xxd7bp {  position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: var(--tt-line-color); --line-color-left: var(--tt-line-color); --line-color-right: var(--tt-line-color); --line-color-top: var(--tt-line-color); --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.08em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; text-align: left }
+    </style>
+    <div class="container">
+      <table class="tinytable" id="tinytable_y3c79ezfr9xsubvg593a" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+        
+        <thead>
+              <tr>
+                <th scope="col" data-row="0" data-col="1"> </th>
+                <th scope="col" data-row="0" data-col="2">Poisson</th>
+                <th scope="col" data-row="0" data-col="3">Neg. Binomial</th>
+              </tr>
+        </thead>
+        <tfoot><tr><td colspan="3">+ p &lt; 0.1, * p &lt; 0.05, ** p &lt; 0.01, *** p &lt; 0.001</td></tr></tfoot>
+        <tbody>
+                <tr>
+                  <td data-row="1" data-col="1">(Intercept)</td>
+                  <td data-row="1" data-col="2">8.750***</td>
+                  <td data-row="1" data-col="3">9.171***</td>
+                </tr>
+                <tr>
+                  <td data-row="2" data-col="1"></td>
+                  <td data-row="2" data-col="2">(0.659)</td>
+                  <td data-row="2" data-col="3">(2.191)</td>
+                </tr>
+                <tr>
+                  <td data-row="3" data-col="1">wordsum</td>
+                  <td data-row="3" data-col="2">1.099***</td>
+                  <td data-row="3" data-col="3">1.104***</td>
+                </tr>
+                <tr>
+                  <td data-row="4" data-col="1"></td>
+                  <td data-row="4" data-col="2">(0.009)</td>
+                  <td data-row="4" data-col="3">(0.028)</td>
+                </tr>
+                <tr>
+                  <td data-row="5" data-col="1">age</td>
+                  <td data-row="5" data-col="2">0.987***</td>
+                  <td data-row="5" data-col="3">0.986***</td>
+                </tr>
+                <tr>
+                  <td data-row="6" data-col="1"></td>
+                  <td data-row="6" data-col="2">(0.001)</td>
+                  <td data-row="6" data-col="3">(0.003)</td>
+                </tr>
+                <tr>
+                  <td data-row="7" data-col="1">sexFemale</td>
+                  <td data-row="7" data-col="2">0.831***</td>
+                  <td data-row="7" data-col="3">0.873</td>
+                </tr>
+                <tr>
+                  <td data-row="8" data-col="1"></td>
+                  <td data-row="8" data-col="2">(0.023)</td>
+                  <td data-row="8" data-col="3">(0.077)</td>
+                </tr>
+                <tr>
+                  <td data-row="9" data-col="1">reliten_3f.L</td>
+                  <td data-row="9" data-col="2">1.540***</td>
+                  <td data-row="9" data-col="3">1.528***</td>
+                </tr>
+                <tr>
+                  <td data-row="10" data-col="1"></td>
+                  <td data-row="10" data-col="2">(0.044)</td>
+                  <td data-row="10" data-col="3">(0.137)</td>
+                </tr>
+                <tr>
+                  <td data-row="11" data-col="1">reliten_3f.Q</td>
+                  <td data-row="11" data-col="2">0.967</td>
+                  <td data-row="11" data-col="3">0.983</td>
+                </tr>
+                <tr>
+                  <td data-row="12" data-col="1"></td>
+                  <td data-row="12" data-col="2">(0.022)</td>
+                  <td data-row="12" data-col="3">(0.070)</td>
+                </tr>
+                <tr>
+                  <td data-row="13" data-col="1">polviews</td>
+                  <td data-row="13" data-col="2">0.997</td>
+                  <td data-row="13" data-col="3">0.985</td>
+                </tr>
+                <tr>
+                  <td data-row="14" data-col="1"></td>
+                  <td data-row="14" data-col="2">(0.010)</td>
+                  <td data-row="14" data-col="3">(0.032)</td>
+                </tr>
+                <tr>
+                  <td data-row="15" data-col="1">wrkhome</td>
+                  <td data-row="15" data-col="2">1.032***</td>
+                  <td data-row="15" data-col="3">1.029</td>
+                </tr>
+                <tr>
+                  <td data-row="16" data-col="1"></td>
+                  <td data-row="16" data-col="2">(0.008)</td>
+                  <td data-row="16" data-col="3">(0.028)</td>
+                </tr>
+                <tr>
+                  <td data-row="17" data-col="1">Num.Obs.</td>
+                  <td data-row="17" data-col="2">600</td>
+                  <td data-row="17" data-col="3">600</td>
+                </tr>
+                <tr>
+                  <td data-row="18" data-col="1">AIC</td>
+                  <td data-row="18" data-col="2">7734.0</td>
+                  <td data-row="18" data-col="3">3885.4</td>
+                </tr>
+                <tr>
+                  <td data-row="19" data-col="1">BIC</td>
+                  <td data-row="19" data-col="2">7769.2</td>
+                  <td data-row="19" data-col="3">3924.9</td>
+                </tr>
+                <tr>
+                  <td data-row="20" data-col="1">Log.Lik.</td>
+                  <td data-row="20" data-col="2">-3858.996</td>
+                  <td data-row="20" data-col="3">-1933.686</td>
+                </tr>
+                <tr>
+                  <td data-row="21" data-col="1">F</td>
+                  <td data-row="21" data-col="2">104.227</td>
+                  <td data-row="21" data-col="3">10.559</td>
+                </tr>
+                <tr>
+                  <td data-row="22" data-col="1">RMSE</td>
+                  <td data-row="22" data-col="2">10.85</td>
+                  <td data-row="22" data-col="3">10.87</td>
+                </tr>
+        </tbody>
+      </table>
+    </div>
+<!-- hack to avoid NA insertion in last line -->
+</div>
+</div>
+<p>The likelihood ratio test result shows that negative binomial model worked significantly better than the original poisson model. AIC and BIC values are also substantially lower for the negative binomial model, which indicates a better fit.</p>
+<hr>
+</section>
+</section>
+<section id="part-6-zero-inflation" class="level1">
+<h1>Part 6: Zero Inflation</h1>
+<section id="exercise-6.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-6.1">Exercise 6.1</h3>
+<p>Test for zero inflation in your chosen model and interpret the result. In your answer, define zero inflation and distinguish between the two types of zeros, giving a concrete example of each using the <code>wwwhr</code> variable.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Why zero?">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Why zero?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-12" class="callout-12-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>performance::check_zeroinflation()</code> compares observed vs.&nbsp;predicted zero counts. Think about why someone might report 0 hours of internet use — there could be more than one reason.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1">performance<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">check_zeroinflation</span>(wwwhr_nb)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># Check for zero-inflation
+
+   Observed zeros: 40
+  Predicted zeros: 65
+            Ratio: 1.61</code></pre>
+</div>
+</div>
+<p>Zero inflation happens when the data has too many zero values, more than what the model predicts. This can bias the model’s prediction.</p>
+<p>Zero values can have broadly two reasons. 1) Some people genuinely don’t use the internet at all, or less than 1 hour. 2) In other cases, zero values don’t have meaningful interpretations about the respondents’ behavior. For example, some people might not have access to the internet as they’re in extremely rural areas. Zero values can be misleading in this case.</p>
+</section>
+<section id="mini-tutorial-fitting-a-zero-inflated-model" class="level2">
+<h2 class="anchored" data-anchor-id="mini-tutorial-fitting-a-zero-inflated-model">Mini-tutorial: Fitting a zero-inflated model</h2>
+<p>The <code>zeroinfl()</code> function from the <code>pscl</code> package fits a two-part model. The left side of <code>|</code> is the count model (Poisson or negative binomial). The right side models the probability of a structural zero using logistic regression.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Extending the doctor visits example from Part 2</span></span>
+<span id="cb44-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Some people avoid doctors entirely (structural zeros)</span></span>
+<span id="cb44-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Others see doctors but had 0 visits that month (sampling zeros)</span></span>
+<span id="cb44-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Adding a binary predictor: whether the person has insurance</span></span>
+<span id="cb44-5"></span>
+<span id="cb44-6">toy_zi_data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb44-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">visits   =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">7</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>),</span>
+<span id="cb44-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">age      =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">22</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">25</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">35</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">19</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">40</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">55</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">28</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">45</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">23</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">60</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">30</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">33</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">27</span>),</span>
+<span id="cb44-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">insured  =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb44-10">)</span>
+<span id="cb44-11"></span>
+<span id="cb44-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Count model: visits ~ age (how many visits, given you go at all)</span></span>
+<span id="cb44-13"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Zero model:  ~ insured (does having insurance affect whether you go at all?)</span></span>
+<span id="cb44-14">toy_zi_model <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">zeroinfl</span>(visits <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> age <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> insured, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">dist =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"negbin"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy_zi_data)</span>
+<span id="cb44-15"></span>
+<span id="cb44-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(toy_zi_model)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+zeroinfl(formula = visits ~ age | insured, data = toy_zi_data, dist = "negbin")
+
+Pearson residuals:
+       Min         1Q     Median         3Q        Max 
+-0.8469321 -0.0003343 -0.0002728  0.0493294  0.7525305 
+
+Count model coefficients (negbin with log link):
+             Estimate Std. Error z value Pr(&gt;|z|)   
+(Intercept)  -3.46939    1.57370  -2.205  0.02748 * 
+age           0.08963    0.02954   3.035  0.00241 **
+Log(theta)   14.44723  407.91453   0.035  0.97175   
+
+Zero-inflation model coefficients (binomial with logit link):
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)    14.79    1155.04   0.013    0.990
+insured       -28.14    1209.03  -0.023    0.981
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1 
+
+Theta = 1880844.8294 
+Number of iterations in BFGS optimization: 37 
+Log-likelihood: -9.666 on 5 Df</code></pre>
+</div>
+</div>
+<p>The output has two sections. “Count model coefficients” are interpreted like a regular negative binomial (log-counts, exponentiate for IRRs). “Zero-inflation model coefficients” are interpreted like logistic regression (log odds of being a structural zero). In this example, uninsured people may be more likely to avoid doctors entirely, which is a different process from how often insured people visit.</p>
+<section id="exercise-6.2" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-6.2">Exercise 6.2</h3>
+<p>Based on your zero-inflation test, should you fit a zero-inflated model? If yes, fit one and compare it to your negative binomial. If no, explain why the negative binomial is sufficient.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Zero-inflated syntax">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Zero-inflated syntax
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The mini-tutorial above shows the syntax pattern. The left side of <code>|</code> is your count model formula, the right side models structural zeros. Use <code>dist = "negbin"</code> if your count model is negative binomial.</p>
+</div>
+</div>
+</div>
+<p>No! My model actually predicts more zeros than observed. Zero inflation isn’t happening.</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="part-7-visualization" class="level1">
+<h1>Part 7: Visualization</h1>
+<section id="exercise-7.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-7.1">Exercise 7.1</h3>
+<p>Visualize your final model’s predictions on both the log-lambda and mean-count scales. For each plot, explain in 1–2 sentences what the scale shows and when you would report one vs.&nbsp;the other.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Two scales">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Two scales
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><code>ggemmeans()</code> or <code>ggpredict()</code> from the <code>ggeffects</code> package. Counts are back-transformed by default. Show both in the panel-tabset.</p>
+</div>
+</div>
+</div>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs"><li class="nav-item"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" aria-controls="tabset-1-1" aria-selected="true" href="">Log Lambda</a></li><li class="nav-item"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" aria-controls="tabset-1-2" aria-selected="false" href="">Mean Count</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" aria-labelledby="tabset-1-1-tab">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1">logplot <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggpredict</span>(wwwhr_nb, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">terms =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"wordsum"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"age"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"reliten_3f"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">back_transform =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>)</span>
+<span id="cb46-2">logplot <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggpredict</span>(wwwhr_nb, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">terms =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"wordsum"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">back_transform =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>)</span>
+<span id="cb46-3"></span>
+<span id="cb46-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(logplot, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log_y =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar18/Lab_Poisson_Regression_Q_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This plot shows predictions on linear predictor scale, and the relationship between predictors and the DV is additive. It’s good for understanding how coefficients operate.</p>
+</div>
+<div id="tabset-1-2" class="tab-pane" aria-labelledby="tabset-1-2-tab">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1">countplot <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggpredict</span>(wwwhr_nb, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">terms =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"wordsum"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"age"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"reliten_3f"</span>))</span>
+<span id="cb47-2">countplot <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggpredict</span>(wwwhr_nb, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">terms =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"wordsum"</span>))</span>
+<span id="cb47-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(countplot)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar18/Lab_Poisson_Regression_Q_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This plot shows predictions on the original outcome scale by exponentiating the linear predictor. It’s more easily interpretable and good for reporting substantive results.</p>
+</div>
+</div>
+</div>
+<hr>
+</section>
+</section>
+<section id="part-8-report-your-conclusions" class="level1">
+<h1>Part 8: Report Your Conclusions</h1>
+<section id="exercise-8.1" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="exercise-8.1">Exercise 8.1</h3>
+<p>Write a results paragraph following the reporting checklist from the lecture slides. Include a justification for why you used your final model over the Poisson.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Hint: Reporting checklist">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hint: Reporting checklist
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>From the lecture: state the hypothesis and model (with link function), report log-count coefficients and IRRs with 95% CIs, include a model fit measure (McFadden R²), mention overdispersion and zero-inflation test results, and note if you switched models and why.</p>
+</div>
+</div>
+</div>
+<p>We tested whether cognitive ability, demographics, and religious intensity predict internet use using count regression with a log link. Our initial Poisson model showed substantial overdispersion (dispersion ratio = 12.12, <em>p</em> &lt; .001), so we fitted a negative binomial model. Compared to the Poisson model, model fit strongly favored the negative binomial specification (χ²(1) = 3850.62, <em>p</em> &lt; .001; AIC = 3885.4). In the final model, higher vocabulary scores were associated with greater internet use (beta = 0.10, 95% CI [0.05, 0.15], <em>p</em> &lt; .001), while age was negatively associated (beta = −0.01, 95% CI [-0.02, -0.0007], <em>p</em> &lt; .001). Religiosity showed a strong positive linear effect (beta = 0.42, 95% CI [0.25, 0.60], <em>p</em> &lt; .001). Political views and working from home were not significant.A zero-inflation test showed that the model overpredicted zeros (ratio = 1.61, p &lt; .001). Overall, the negative binomial model provided the best fit and most reliable inference.</p>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <guid>https://your-website-url.example.com/posts/lab_Mar18/Lab_Poisson_Regression_Q.html</guid>
+  <pubDate>Wed, 18 Mar 2026 04:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Lab 4 - Multinomial Regression</title>
   <dc:creator>Yeaju Diana Kim</dc:creator>
