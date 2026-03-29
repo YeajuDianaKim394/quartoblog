@@ -65,6 +65,7 @@ library(broom.mixed)
 library(lmerTest)
 library(patchwork)
 library(ggdist)
+#install.packages('effects')
 library(effects)
 library(gt)
 library(parameters)
@@ -136,7 +137,7 @@ ggplot(toy2, aes(x = hrs_week)) +
 ```{r}
 #YOUR ATTEMPT HERE
 
-
+#The lines are the same for all toys.
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -161,7 +162,7 @@ This makes total sense, because the model (which is where we've got the lines fr
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#They're the same.
 ```
 
 ### Question 2
@@ -215,7 +216,7 @@ ggplot(toy2, aes(x = hrs_week)) +
 ```{r}
 #ENTER YOUR ATTEMPT AND THOUGHTS HERE:
 
-
+#It seems like the first and second ones show the same lines. They have a different intercept for each toy_type but the slopes stay the same across all toy_types. For the third one, however, all toy types have its own intercept and slope.
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -265,6 +266,7 @@ ggplot(toy2, aes(x = hrs_week)) +
 
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#I thought the first and second ones are just the same but supposedly they're only similar enough.. The second model captures a distribution of deviations for each toy type.
 ```
 
 ### Question 3
@@ -313,7 +315,10 @@ Choose from these options:
 
 ```{r}
 #ENTER YOUR ATTEMPT AND THOUGHTS HERE:
-
+# A1: the standard deviation of the distances from all the toy-type lines to the black line
+# A2: the standard deviation of the distances from all the individual datapoints (toys) to their respective toy-type lines --> sd of residuals within each toy type
+# A3: where the black line cuts the y axis at x=0 --> fixed intercept 
+# A4: the slope of the black line --> this is the main coefficient
 
 ```
 
@@ -329,7 +334,7 @@ Choose from these options:
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#They're the same!
 ```
 
 ### Question 4 (Optional)
@@ -377,7 +382,10 @@ Choose from:
 ```{r}
 #ENTER YOUR ATTEMPT AND THOUGHTS HERE:
 
-
+# A1: sigma0
+# A2: sigma epsilon
+# A3: gamma00
+# A4: b1
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -392,7 +400,7 @@ Choose from:
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#I got it right. But why do it call it gamma00??
 ```
 
 ------------------------------------------------------------------------
@@ -499,7 +507,12 @@ Functions like `table()` and `count()` will likely be useful here.
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
 
-
+#table(efrep)
+head(efrep)
+count(efrep)
+n_distinct(efrep$PID)
+# 30 participants with at least 1 trial.. 
+# 360 trials in total so 12 trials per participant on average
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -596,7 +609,7 @@ There are plenty of other ways (e.g., you could use combinations of `group_by()`
 
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
-
+#I didn't know how to use |>! This looks very handy.
 
 ```
 
@@ -606,16 +619,17 @@ There are plenty of other ways (e.g., you could use combinations of `group_by()`
 
 Consider the following questions about the study:
 
--   What is our outcome of interest?
--   What variables are we seeking to investigate in terms of their impact on the outcome?
--   What are the units of observations?
--   Are the observations clustered/grouped? In what way?
--   What varies *within* these clusters?
--   What varies *between* these clusters?
+-   What is our outcome of interest?: SDMT
+-   What variables are we seeking to investigate in terms of their impact on the outcome? : audio, audio \* headphones
+-   What are the units of observations? : trials
+-   Are the observations clustered/grouped? In what way? : grouped based on participants
+-   What varies *within* these clusters? : audio type (no audio, white noise, music)
+-   What varies *between* these clusters? : different participants (individual difference), speaker vs. headphone
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
-
+ef_mod <- lm(SDMT ~ audio * headphones, data = efdat)
+summary(ef_mod)
 
 ```
 
@@ -639,7 +653,7 @@ Consider the following questions about the study:
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+# no individual difference between clusters?
 ```
 
 ### Question 7
@@ -654,8 +668,11 @@ Check back to the Multiple Regression materials for a refresher on setting facto
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
+efdat$audio <- relevel(factor(efdat$audio, ordered = FALSE), ref = "no_audio")
 
+efdat$headphones <- relevel(factor(efdat$headphones, ordered = FALSE), ref = "S")
 
+head(efdat$audio)
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -673,7 +690,7 @@ efdat <- efdat |>
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#The solution used mutate and fct_relevel while I didn't.
 ```
 
 ### Question 8
@@ -701,7 +718,11 @@ For additional reading on multilevel models and how to fit them in R, see [Chapt
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
 
+ef_fixedeffect <- lm(SDMT ~ audio * headphones, data = efdat)
+ef_randomintercept <- lmer(SDMT ~ audio * headphones + (1 | PID), data = efdat)
+ef_randomslope <- lmer(SDMT ~ audio * headphones + (1 + audio | PID), data = efdat)
 
+summary(ef_randomslope)
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -787,7 +808,7 @@ bwplot(SDMT~audio|PID, data = efdat, scales=list(x=list(rot=90)))
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#I would say they are pretty consistent..
 ```
 
 ### Question 9
@@ -828,8 +849,9 @@ SATmodcomp(largeModel = sdmt_mod, smallModel = sdmt_res)
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
-
-
+sdmt_mod_test <- lmerTest::lmer(SDMT ~ audio * headphones +
+              (1 + audio | PID), data = efdat)
+summary(sdmt_mod_test)
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -846,7 +868,7 @@ summary(sdmt_mod)
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#They're the same.
 ```
 
 ### Question 10
@@ -874,7 +896,11 @@ The logic is just the same as for regular regression — it's just that the esti
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
+ef_df <- effect(term = "audio*headphones", mod = sdmt_mod) |>
+  as.data.frame()
 
+ggplot(ef_df, aes(x = audio, y = fit, ymin=lower,ymax=upper, col = headphones))+
+  geom_point(position = position_dodge(0.3), size = 3)
 
 ```
 
@@ -895,7 +921,7 @@ effect(term = "audio*headphones", mod = sdmt_mod) |>
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+#I used points and the solution used point range.
 ```
 
 ### Question 11
@@ -916,11 +942,17 @@ This requires detailing all of the steps you took in conducting the analysis, bu
 -   Present (visually and numerically) the key results of the coefficient tests or model comparisons, and explain what these mean in the context of the research question (this could be things like practical significance of the effect size, and the group-level variability in the effects).
 :::
 
-```{r}
-#ENTER YOUR ATTEMPT HERE:
+We tested how different types of audio interfere with executive functioning, and whether the interference differ depending upon listening context (via speakers vs. noise canceling headphones).
+Symbol Digit Modalities Test (SDMT) scores were employed to measure executive function in each trial.
+Data were available from 30 participants, each completing up to 15 trials (5 per audio condition: no audio, white noise, music) across two listening contexts (speakers or noise-cancelling headphones).
+Due to missing observations, the analysis used 360 observations in total, averaging 12 trials per participant.
 
+We ran multilevel model to test an effect of audio type, listening context, and their interaction on executive function (SDMT) with a random intercept and random slope of each participant.
+The reference levels were 'no audio' and 'speakers'.
 
-```
+In the speakers condition, music significantly reduced SDMT scores relative to no audio (b = −8.0, SE = 1.4, p \< .001), while white noise had no reliable effect (b = −0.03, SE = 1.4, p = .98).
+Noise cancelling headphones were associated with higher SDMT scores compared to speakers (b = +6.9, SE = 2.8, p = .021).
+The interaction between audio type and listening context was significant for white noise (b = +8.0, SE = 2.0, p \< .001) but not for music (b = −3.6, SE = 2.0, p = .084).
 
 :::: {.callout-tip collapse="true"}
 #### Solution
@@ -988,5 +1020,5 @@ sjPlot::tab_model(sdmt_mod,df.method="satterthwaite",
 ```{r}
 #DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
 
-
+# I didn't mention the model comparison part and the specific R package I used. And I also forgot to include participant variability.
 ```

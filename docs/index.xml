@@ -10,7 +10,3593 @@
 <atom:link href="https://your-website-url.example.com/index.xml" rel="self" type="application/rss+xml"/>
 <description>A blog built with Quarto</description>
 <generator>quarto-1.8.24</generator>
-<lastBuildDate>Wed, 18 Mar 2026 04:00:00 GMT</lastBuildDate>
+<lastBuildDate>Wed, 25 Mar 2026 04:00:00 GMT</lastBuildDate>
+<item>
+  <title>Lab: Intro to Multilevel Models</title>
+  <dc:creator>Yeaju Diana Kim</dc:creator>
+  <link>https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="instructions" class="level2">
+<h2 class="anchored" data-anchor-id="instructions">Instructions</h2>
+<ul>
+<li>If you are fitting a model, display the model output in a neatly formatted table. (The <code>tidy()</code> and <code>kable()</code> functions can help!)</li>
+<li>If you are creating a plot, use clear labels for all axes, titles, etc.</li>
+<li>Commit and push your work to GitHub regularly, at least after each exercise. Write short and informative commit messages.</li>
+<li>When you’re done, we should be able to knit the final version of the QMD in your GitHub as an HTML.</li>
+</ul>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>How to work through this lab
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Today’s lab is not about “how to do analyses with multilevel models” — we will do that next week! Instead, the lab aims to get you thinking and help with an understanding of how mixed models work.</p>
+<p>This is more of a <strong>walkthrough</strong> than a traditional assignment. Solutions are present in the file — but don’t look at them immediately.</p>
+<ol type="1">
+<li>Create new chunks immediately after the questions with <strong>your attempt</strong> at a solution after spending some time with the question.</li>
+<li>Then look at the solutions, and add brief comments on whether your answers diverged — if so, how?</li>
+</ol>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Workflow tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Work through the lab by running chunks <strong>one at a time</strong> in RStudio (Cmd/Ctrl + Enter), not by rendering the whole document. Render only at the end, once all your code is working.</p>
+<p>This is how most R users actually work — you’d write a line, run it, check the output, and iterate. Rendering is for producing the final document. When you render, Quarto starts a fresh R session and runs every chunk top-to-bottom, so if anything is incomplete, everything downstream breaks. When you work interactively using chunks, your environment builds up as you go, so you always have your objects available to inspect and troubleshoot.</p>
+<p>The <strong>“Run All Chunks Above”</strong> button (downward arrow with a bar, next to the green play button in each chunk) is another useful tool. It re-runs everything from the top of the document up to your current chunk, so all your objects are up to date before you start working on the next question.</p>
+</div>
+</div>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyverse)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(lme4)</span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(broom.mixed)</span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(lmerTest)</span>
+<span id="cb1-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(patchwork)</span>
+<span id="cb1-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggdist)</span>
+<span id="cb1-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#install.packages('effects')</span></span>
+<span id="cb1-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(effects)</span>
+<span id="cb1-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(gt)</span>
+<span id="cb1-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(parameters)</span>
+<span id="cb1-11"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(knitr)</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="part-1-getting-to-grips-with-mlm" class="level1">
+<h1>Part 1: Getting to grips with MLM</h1>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>These exercises are not “how to do analyses with multilevel models” — they are designed to get you thinking, and help with an understanding of how these models work.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Data: New Toys!
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Let’s consider a linear regression scenario with a toy dataset. Analysis question: How does practice influence the reading age of toy characters? Dataset link: <a href="https://uoepsy.github.io/data/toy2.csv" class="uri">https://uoepsy.github.io/data/toy2.csv</a> contains information on 129 different toy characters that come from a selection of different families/types of toy.</p>
+<p>You can see the variables in the table below.</p>
+<div class="columns">
+<div class="column" style="width:45%;">
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/images/toys.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="300"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:10%;">
+
+</div><div class="column" style="width:45%;">
+<div class="cell">
+<div class="cell-output-display">
+<div id="sxqhgviqvv" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#sxqhgviqvv table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#sxqhgviqvv thead, #sxqhgviqvv tbody, #sxqhgviqvv tfoot, #sxqhgviqvv tr, #sxqhgviqvv td, #sxqhgviqvv th {
+  border-style: none;
+}
+
+#sxqhgviqvv p {
+  margin: 0;
+  padding: 0;
+}
+
+#sxqhgviqvv .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#sxqhgviqvv .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#sxqhgviqvv .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#sxqhgviqvv .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#sxqhgviqvv .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#sxqhgviqvv .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#sxqhgviqvv .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#sxqhgviqvv .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#sxqhgviqvv .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#sxqhgviqvv .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#sxqhgviqvv .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#sxqhgviqvv .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#sxqhgviqvv .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#sxqhgviqvv .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#sxqhgviqvv .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxqhgviqvv .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#sxqhgviqvv .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#sxqhgviqvv .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#sxqhgviqvv .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxqhgviqvv .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#sxqhgviqvv .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxqhgviqvv .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#sxqhgviqvv .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxqhgviqvv .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#sxqhgviqvv .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#sxqhgviqvv .gt_left {
+  text-align: left;
+}
+
+#sxqhgviqvv .gt_center {
+  text-align: center;
+}
+
+#sxqhgviqvv .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#sxqhgviqvv .gt_font_normal {
+  font-weight: normal;
+}
+
+#sxqhgviqvv .gt_font_bold {
+  font-weight: bold;
+}
+
+#sxqhgviqvv .gt_font_italic {
+  font-style: italic;
+}
+
+#sxqhgviqvv .gt_super {
+  font-size: 65%;
+}
+
+#sxqhgviqvv .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#sxqhgviqvv .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#sxqhgviqvv .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#sxqhgviqvv .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#sxqhgviqvv .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#sxqhgviqvv .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#sxqhgviqvv .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#sxqhgviqvv .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#sxqhgviqvv div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="variable" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">variable</th>
+<th id="description" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">description</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">toy_type</td>
+<td class="gt_row gt_left" headers="description">Type of Toy</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">year</td>
+<td class="gt_row gt_left" headers="description">Year Released</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">toy</td>
+<td class="gt_row gt_left" headers="description">Character</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">hrs_week</td>
+<td class="gt_row gt_left" headers="description">Hours of practice per week</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">R_AGE</td>
+<td class="gt_row gt_left" headers="description">Reading Age</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="question-1" class="level3">
+<h3 class="anchored" data-anchor-id="question-1">Question 1</h3>
+<p>Below is some code that fits a model of “reading age” (<code>R_AGE</code>) predicted by hours of practice (<code>hrs_week</code>). Line 2 then gets the ‘fitted’ values from the model and adds them as a new column to the dataset, called <code>pred_lm</code>. The fitted values are what the model predicts for every individual observation (every individual toy in our dataset).</p>
+<p>Lines 4–7 then plot the data, split up by each type of toy, and add lines showing the model fitted values.</p>
+<p>Run the code and check that you get a plot. What do you notice about the lines?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb2-1">lm_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> hrs_week, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb2-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_lm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(lm_mod)</span>
+<span id="cb2-3"></span>
+<span id="cb2-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_lm), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#YOUR ATTEMPT HERE</span></span>
+<span id="cb3-2"></span>
+<span id="cb3-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#The lines are the same for all toys.</span></span></code></pre></div></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>We should get something like this:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">lm_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> hrs_week, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb4-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_lm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(lm_mod)</span>
+<span id="cb4-3"></span>
+<span id="cb4-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_lm), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Note that the lines are exactly the same for each type of toy. This makes total sense, because the model (which is where we’ve got the lines from) completely <em>ignores</em> the <code>toy_type</code> variable!</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb5-2"></span>
+<span id="cb5-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#They're the same.</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-2" class="level3">
+<h3 class="anchored" data-anchor-id="question-2">Question 2</h3>
+<p>Below are 3 more code chunks that all 1) fit a model, then 2) add the fitted values of that model to the plot.</p>
+<p>The first model is a ‘no-pooling’ approach, where we simply add in <code>toy_type</code> as a predictor in the model to estimate all the differences between types of toys.</p>
+<p>The second and third are multilevel models. The second fits random intercepts by toy type, and the third fits random intercepts and slopes of <code>hrs_week</code>.</p>
+<p>Copy each chunk and run through the code. Pay attention to how the lines differ.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">fe_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> toy_type <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> hrs_week, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb6-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_fe <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(fe_mod)</span>
+<span id="cb6-3"></span>
+<span id="cb6-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_fe), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"blue"</span>)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">ri_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> hrs_week <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> toy_type), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb7-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_ri <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(ri_mod)</span>
+<span id="cb7-3"></span>
+<span id="cb7-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb7-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_ri), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"green"</span>)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">rs_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> hrs_week <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> hrs_week <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> toy_type), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb8-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_rs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(rs_mod)</span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_rs), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"orange"</span>)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT AND THOUGHTS HERE:</span></span>
+<span id="cb9-2"></span>
+<span id="cb9-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#It seems like the first and second ones show the same lines. They have a different intercept for each toy_type but the slopes stay the same across all toy_types. For the third one, however, all toy types have its own intercept and slope.</span></span></code></pre></div></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The first model has an adjustment for each toy-type (we can see this in the coefficients if we want). What this means is that the line for each type of toy is shifted up or down. We can see that the lines are now shifted up for things like “Scooby Doo” and “G.I.Joe”, and down for “transformers” and “farm animals”:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">fe_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> toy_type <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> hrs_week, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb10-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_fe <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(fe_mod)</span>
+<span id="cb10-3"></span>
+<span id="cb10-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb10-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb10-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb10-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_fe), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"blue"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This next one <em>looks</em> very similar to the previous one, but it is conceptually doing something a bit different. Rather than separating out and estimating differences between all the toy-types, we are modelling <em>a distribution</em> of deviations for each type from some average.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">ri_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> hrs_week <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> toy_type), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb11-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_ri <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(ri_mod)</span>
+<span id="cb11-3"></span>
+<span id="cb11-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb11-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb11-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb11-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_ri), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"green"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Finally, we can add in the random slopes of <code>hrs_week</code>. In this model, we are not only allowing toy-types to vary in their average reading age (i.e.&nbsp;shifting lines up and down), but we are also allowing them to vary in the association between hrs_week and reading age (letting the lines have different slopes). Some types of toy (Scooby Doo, Sock Puppets, Stretch Armstrong) have fairly positive slopes, and some have a flatter association (e.g., SuperZings etc).</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">rs_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(R_AGE <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> hrs_week <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> hrs_week <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> toy_type), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> toy2)</span>
+<span id="cb12-2">toy2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred_rs <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(rs_mod)</span>
+<span id="cb12-3"></span>
+<span id="cb12-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(toy2, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> hrs_week)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> R_AGE), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha=</span>.<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>toy_type) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb12-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>pred_rs), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"orange"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb13-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#I thought the first and second ones are just the same but supposedly they're only similar enough.. The second model captures a distribution of deviations for each toy type.</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-3" class="level3">
+<h3 class="anchored" data-anchor-id="question-3">Question 3</h3>
+<p>From the previous questions you should have a model called <code>ri_mod</code>.</p>
+<p>Below is a plot of the fitted values from that model. Rather than having a separate facet for each type of toy as we did above, I have put them all on one plot. The thick black line is the average intercept and slope of the toy-type lines.</p>
+<p>Identify the parts of the plot that correspond to A1–4 in the summary output of the model below.</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/images/match_summ1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Choose from these options:</p>
+<ul>
+<li>where the black line cuts the y axis (at x=0)</li>
+<li>the slope of the black line</li>
+<li>the standard deviation of the distances from all the individual datapoints (toys) to their respective toy-type lines</li>
+<li>the standard deviation of the distances from all the toy-type lines to the black line</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT AND THOUGHTS HERE:</span></span>
+<span id="cb14-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A1: the standard deviation of the distances from all the toy-type lines to the black line</span></span>
+<span id="cb14-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A2: the standard deviation of the distances from all the individual datapoints (toys) to their respective toy-type lines --&gt; sd of residuals within each toy type</span></span>
+<span id="cb14-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A3: where the black line cuts the y axis at x=0 --&gt; fixed intercept </span></span>
+<span id="cb14-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A4: the slope of the black line --&gt; this is the main coefficient</span></span></code></pre></div></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>A1</strong> = the standard deviation of the distances from all the toy-type lines to the black line</li>
+<li><strong>A2</strong> = the standard deviation of the distances from all the individual datapoints (toys) to their respective toy-type lines</li>
+<li><strong>A3</strong> = where the black line cuts the y axis</li>
+<li><strong>A4</strong> = the slope of the black line</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb15-2"></span>
+<span id="cb15-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#They're the same!</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-4-optional" class="level3">
+<h3 class="anchored" data-anchor-id="question-4-optional">Question 4 (Optional)</h3>
+<p>Below is the model equation for the <code>ri_mod</code> model.</p>
+<p>Identify the part of the equation that represents each of A1–4.</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/images/match_summ1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div style="font-size: .7em">
+<p><img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%5Ctext%7BFor%20Toy%20%7Dj%5Ctext%7B%20of%20Type%20%7Di%20&amp;%20%5C%5C%0A%5Ctext%7BLevel%201%20(Toy):%7D&amp;%20%5C%5C%0A%5Ctext%7BR%5C_AGE%7D_%7Bij%7D%20&amp;=%20b_%7B0i%7D%20+%20b_1%20%5Ccdot%20%5Ctext%7Bhrs%5C_week%7D_%7Bij%7D%20+%20%5Cepsilon_%7Bij%7D%20%5C%5C%0A%5Ctext%7BLevel%202%20(Type):%7D&amp;%20%5C%5C%0Ab_%7B0i%7D%20&amp;=%20%5Cgamma_%7B00%7D%20+%20%5Czeta_%7B0i%7D%20%5C%5C%0A%5Ctext%7BWhere:%7D&amp;%20%5C%5C%0A%5Czeta_%7B0i%7D%20&amp;%5Csim%20N(0,%5Csigma_%7B0%7D)%20%5C%5C%0A%5Cvarepsilon%20&amp;%5Csim%20N(0,%5Csigma_%7Be%7D)%20%5C%5C%0A%5Cend%7Balign%7D"></p>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-9-contents" aria-controls="callout-9" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-9" class="callout-9-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Choose from:</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?%5Csigma_%7B%5Cvarepsilon%7D"></li>
+<li><img src="https://latex.codecogs.com/png.latex?b_%7B1%7D"></li>
+<li><img src="https://latex.codecogs.com/png.latex?%5Csigma_%7B0%7D"></li>
+<li><img src="https://latex.codecogs.com/png.latex?%5Cgamma_%7B00%7D"></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT AND THOUGHTS HERE:</span></span>
+<span id="cb16-2"></span>
+<span id="cb16-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A1: sigma0</span></span>
+<span id="cb16-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A2: sigma epsilon</span></span>
+<span id="cb16-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A3: gamma00</span></span>
+<span id="cb16-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># A4: b1</span></span></code></pre></div></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-10-contents" aria-controls="callout-10" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-10" class="callout-10-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>A1 =</strong> <img src="https://latex.codecogs.com/png.latex?%5Csigma_%7B0%7D"></li>
+<li><strong>A2 =</strong> <img src="https://latex.codecogs.com/png.latex?%5Csigma_%7B%5Cvarepsilon%7D"></li>
+<li><strong>A3 =</strong> <img src="https://latex.codecogs.com/png.latex?%5Cgamma_%7B00%7D"></li>
+<li><strong>A4 =</strong> <img src="https://latex.codecogs.com/png.latex?b_%7B1%7D"></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb17-2"></span>
+<span id="cb17-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#I got it right. But why do it call it gamma00??</span></span></code></pre></div></div>
+</details>
+</div>
+<hr>
+</section>
+</section>
+<section id="part-2-audio-interference-in-executive-functioning-repeated-measures" class="level1">
+<h1>Part 2: Audio Interference in Executive Functioning (Repeated Measures)</h1>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This next set of exercises is closer to conducting a real study. We have some data and a research question (below). The exercises will walk you through describing the data, then prompt you to think about how we might fit an appropriate model to address the research question, and finally task you with having a go at writing up what you’ve done.</p>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Data: Audio interference in executive functioning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This data is from a simulated study that aims to investigate the following research question:</p>
+<blockquote class="blockquote">
+<p>How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used?</p>
+</blockquote>
+<p>30 healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) — a commonly used test to assess processing speed and motor speed — a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room. Unfortunately, lots of the tests were not administered correctly, and so not every participant has the full 15 trials worth of data.</p>
+<p>The data is available at <a href="https://uoepsy.github.io/data/lmm_ef_sdmt.csv" class="uri">https://uoepsy.github.io/data/lmm_ef_sdmt.csv</a>.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fptnpbqagc" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#fptnpbqagc table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#fptnpbqagc thead, #fptnpbqagc tbody, #fptnpbqagc tfoot, #fptnpbqagc tr, #fptnpbqagc td, #fptnpbqagc th {
+  border-style: none;
+}
+
+#fptnpbqagc p {
+  margin: 0;
+  padding: 0;
+}
+
+#fptnpbqagc .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#fptnpbqagc .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#fptnpbqagc .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#fptnpbqagc .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#fptnpbqagc .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#fptnpbqagc .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#fptnpbqagc .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#fptnpbqagc .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#fptnpbqagc .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#fptnpbqagc .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#fptnpbqagc .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#fptnpbqagc .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#fptnpbqagc .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#fptnpbqagc .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#fptnpbqagc .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fptnpbqagc .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#fptnpbqagc .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#fptnpbqagc .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#fptnpbqagc .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fptnpbqagc .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#fptnpbqagc .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fptnpbqagc .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#fptnpbqagc .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fptnpbqagc .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#fptnpbqagc .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#fptnpbqagc .gt_left {
+  text-align: left;
+}
+
+#fptnpbqagc .gt_center {
+  text-align: center;
+}
+
+#fptnpbqagc .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#fptnpbqagc .gt_font_normal {
+  font-weight: normal;
+}
+
+#fptnpbqagc .gt_font_bold {
+  font-weight: bold;
+}
+
+#fptnpbqagc .gt_font_italic {
+  font-style: italic;
+}
+
+#fptnpbqagc .gt_super {
+  font-size: 65%;
+}
+
+#fptnpbqagc .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#fptnpbqagc .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#fptnpbqagc .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#fptnpbqagc .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#fptnpbqagc .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#fptnpbqagc .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#fptnpbqagc .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#fptnpbqagc .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#fptnpbqagc div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="variable" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">variable</th>
+<th id="description" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">description</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">PID</td>
+<td class="gt_row gt_left" headers="description">Participant ID</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">audio</td>
+<td class="gt_row gt_left" headers="description">Audio heard during the test ('no_audio', 'white_noise','music')</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">headphones</td>
+<td class="gt_row gt_left" headers="description">Whether the participant listened via speakers (S) in the room or via noise cancelling headphones (H)</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">SDMT</td>
+<td class="gt_row gt_left" headers="description">Symbol Digit Modalities Test (SDMT) score</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="question-5" class="level3">
+<h3 class="anchored" data-anchor-id="question-5">Question 5</h3>
+<p>How many participants are there in the data? How many have complete data (15 trials)? What is the average number of trials that participants completed? What is the minimum? Does every participant have <em>some</em> data for each type of audio?</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-13-contents" aria-controls="callout-13" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-13" class="callout-13-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Functions like <code>table()</code> and <code>count()</code> will likely be useful here.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT HERE:</span></span>
+<span id="cb18-2"></span>
+<span id="cb18-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#table(efrep)</span></span>
+<span id="cb18-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(efrep)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  PID    audio       headphones  SDMT
+  &lt;chr&gt;  &lt;chr&gt;       &lt;chr&gt;      &lt;dbl&gt;
+1 PPT_15 no_audio    S             37
+2 PPT_22 no_audio    H             55
+3 PPT_21 no_audio    H             40
+4 PPT_20 no_audio    H             36
+5 PPT_20 no_audio    H             30
+6 PPT_05 white_noise S             30</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(efrep)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 1
+      n
+  &lt;int&gt;
+1   360</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">n_distinct</span>(efrep<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>PID)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 30</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 30 participants with at least 1 trial.. </span></span>
+<span id="cb24-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 360 trials in total so 12 trials per participant on average</span></span></code></pre></div></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-14-contents" aria-controls="callout-14" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — read in the data
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-14" class="callout-14-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1">efdat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read_csv</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"https://uoepsy.github.io/data/lmm_ef_sdmt.csv"</span>)</span>
+<span id="cb25-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(efdat)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  PID    audio       headphones  SDMT
+  &lt;chr&gt;  &lt;chr&gt;       &lt;chr&gt;      &lt;dbl&gt;
+1 PPT_15 no_audio    S             37
+2 PPT_22 no_audio    H             55
+3 PPT_21 no_audio    H             40
+4 PPT_20 no_audio    H             36
+5 PPT_20 no_audio    H             30
+6 PPT_05 white_noise S             30</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-15-contents" aria-controls="callout-15" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — how many participants?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-15" class="callout-15-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>For a quick “how many?”, functions like <code>n_distinct()</code> can be handy:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">n_distinct</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>PID)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 30</code></pre>
+</div>
+</div>
+<p>Which is essentially the same as asking:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">unique</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>PID) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 30</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — how many observations per participant?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Here are the counts of trials for each participant.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1">efdat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb31-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(PID)</span></code></pre></div></div>
+</details>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 30 × 2
+  PID        n
+  &lt;chr&gt;  &lt;int&gt;
+1 PPT_01    13
+2 PPT_02    12
+3 PPT_03    10
+4 PPT_04    10
+5 PPT_05    10
+# ℹ 25 more rows</code></pre>
+</div>
+</div>
+<p>We can pass that to something like <code>summary()</code> to get a quick descriptive of the <code>n</code> column, and so we can see that no participant completed all 15 trials (max is 14). Everyone completed at least 10, and the median was 12.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1">efdat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb33-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(PID) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb33-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>     PID                  n     
+ Length:30          Min.   :10  
+ Class :character   1st Qu.:11  
+ Mode  :character   Median :12  
+                    Mean   :12  
+                    3rd Qu.:13  
+                    Max.   :14  </code></pre>
+</div>
+</div>
+<p>We could also do this easily with things like:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">table</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>PID) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">median</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 12</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-18-contents" aria-controls="callout-18" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — observations for each audio type per participant?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-18" class="callout-18-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>For this kind of thing I would typically default to using <code>table()</code> for smaller datasets, to see how many datapoints are in each combination of <code>PID</code> and <code>audio</code>:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">table</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>PID, efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>audio)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>        
+         music no_audio white_noise
+  PPT_01     4        5           4
+  PPT_02     5        4           3
+  PPT_03     3        2           5
+  PPT_04     3        4           3
+  PPT_05     5        2           3
+  PPT_06     4        4           5
+  PPT_07     4        3           4
+  PPT_08     4        4           5
+  PPT_09     5        4           5
+  PPT_10     4        5           4
+  PPT_11     4        4           4
+  PPT_12     4        5           5
+  PPT_13     4        4           3
+  PPT_14     3        5           4
+  PPT_15     4        5           4
+  PPT_16     4        4           3
+  PPT_17     5        4           5
+  PPT_18     5        3           3
+  PPT_19     3        5           3
+  PPT_20     4        4           5
+  PPT_21     3        5           4
+  PPT_22     4        4           3
+  PPT_23     3        3           4
+  PPT_24     4        5           5
+  PPT_25     4        4           5
+  PPT_26     5        4           5
+  PPT_27     5        2           4
+  PPT_28     4        4           4
+  PPT_29     4        4           4
+  PPT_30     2        5           3</code></pre>
+</div>
+</div>
+<p>From the above, we can see that everyone has data from <img src="https://latex.codecogs.com/png.latex?%5Cgeq%202"> trials for a given audio type.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">table</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>PID, efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>audio) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">min</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 2</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>A tidyverse way
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>When tables get too big, we can do the same thing with <code>count()</code>, but we need to make sure that we are working with factors, in order to summarise all possible combinations of groups (even empty ones):</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1">efdat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb41-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">PID =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(PID),</span>
+<span id="cb41-3">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">audio =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(audio)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb41-4">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># the .drop=FALSE means "keep empty groups"</span></span>
+<span id="cb41-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(PID,audio,<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">.drop=</span><span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb41-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>      PID             audio          n    
+ PPT_01 : 3   music      :30   Min.   :2  
+ PPT_02 : 3   no_audio   :30   1st Qu.:4  
+ PPT_03 : 3   white_noise:30   Median :4  
+ PPT_04 : 3                    Mean   :4  
+ PPT_05 : 3                    3rd Qu.:5  
+ PPT_06 : 3                    Max.   :5  
+ (Other):72                               </code></pre>
+</div>
+</div>
+<p>There are plenty of other ways (e.g., you could use combinations of <code>group_by()</code>, <code>summarise()</code>), so just pick one that makes sense to you.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb43-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#I didn't know how to use |&gt;! This looks very handy.</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-6" class="level3">
+<h3 class="anchored" data-anchor-id="question-6">Question 6</h3>
+<blockquote class="blockquote">
+<p>How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used?</p>
+</blockquote>
+<p>Consider the following questions about the study:</p>
+<ul>
+<li>What is our outcome of interest?: SDMT</li>
+<li>What variables are we seeking to investigate in terms of their impact on the outcome? : audio, audio * headphones</li>
+<li>What are the units of observations? : trials</li>
+<li>Are the observations clustered/grouped? In what way? : grouped based on participants</li>
+<li>What varies <em>within</em> these clusters? : audio type (no audio, white noise, music)</li>
+<li>What varies <em>between</em> these clusters? : different participants (individual difference), speaker vs.&nbsp;headphone</li>
+</ul>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT HERE:</span></span>
+<span id="cb44-2">ef_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb44-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(ef_mod)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = SDMT ~ audio * headphones, data = efdat)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-24.500  -6.383   0.500   6.433  23.983 
+
+Coefficients:
+                             Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)                    28.017      1.204  23.270  &lt; 2e-16 ***
+audiono_audio                  12.550      1.696   7.401  9.9e-13 ***
+audiowhite_noise               19.483      1.696  11.491  &lt; 2e-16 ***
+headphonesS                    -2.500      1.696  -1.475   0.1412    
+audiono_audio:headphonesS      -5.066      2.393  -2.117   0.0349 *  
+audiowhite_noise:headphonesS  -11.655      2.388  -4.881  1.6e-06 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 9.248 on 354 degrees of freedom
+Multiple R-squared:  0.3963,    Adjusted R-squared:  0.3878 
+F-statistic: 46.48 on 5 and 354 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-19-contents" aria-controls="callout-19" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-19" class="callout-19-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li>What is our outcome of interest?
+<ul>
+<li><strong>SDMT scores</strong></li>
+</ul></li>
+<li>What variables are we seeking to investigate in terms of their impact on the outcome?
+<ul>
+<li><strong>audio type</strong> and the interaction <strong>audio type</strong> <img src="https://latex.codecogs.com/png.latex?%5Ctimes"> wearing headphones</li>
+</ul></li>
+<li>What are the units of observations?
+<ul>
+<li><strong>individual trials</strong></li>
+</ul></li>
+<li>What are the groups/clusters?
+<ul>
+<li><strong>participants</strong></li>
+</ul></li>
+<li>What varies <em>within</em> these clusters?
+<ul>
+<li><strong>the type of audio</strong></li>
+</ul></li>
+<li>What varies <em>between</em> these clusters?
+<ul>
+<li><strong>whether they listen via headphones or speakers</strong></li>
+</ul></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb46-2"></span>
+<span id="cb46-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># no individual difference between clusters?</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-7" class="level3">
+<h3 class="anchored" data-anchor-id="question-7">Question 7</h3>
+<p>Make factors and set the reference levels of the <code>audio</code> and <code>headphones</code> variables to “no audio” and “speakers” respectively.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-20-contents" aria-controls="callout-20" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-20" class="callout-20-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Check back to the Multiple Regression materials for a refresher on setting factors and reference levels.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT HERE:</span></span>
+<span id="cb47-2">efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>audio <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">relevel</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>audio, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ordered =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ref =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"no_audio"</span>)</span>
+<span id="cb47-3"></span>
+<span id="cb47-4">efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>headphones <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">relevel</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>headphones, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ordered =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ref =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"S"</span>)</span>
+<span id="cb47-5"></span>
+<span id="cb47-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(efdat<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>audio)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] no_audio    no_audio    no_audio    no_audio    no_audio    white_noise
+Levels: no_audio music white_noise</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-21-contents" aria-controls="callout-21" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-21" class="callout-21-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1">efdat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> efdat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb49-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb49-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">audio =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fct_relevel</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(audio), <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"no_audio"</span>),</span>
+<span id="cb49-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">headphones =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fct_relevel</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(headphones), <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"S"</span>)</span>
+<span id="cb49-5">  )</span></code></pre></div></div>
+</details>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb50-2"></span>
+<span id="cb50-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#The solution used mutate and fct_relevel while I didn't.</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-8" class="level3">
+<h3 class="anchored" data-anchor-id="question-8">Question 8</h3>
+<p>Fit a multilevel model to address the aims of the study (copied below):</p>
+<blockquote class="blockquote">
+<p>How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used?</p>
+</blockquote>
+<p>Specifying the model may feel like a lot, but try splitting it into three parts:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Blmer(%7D%5Coverbrace%7B%5Ctext%7Boutcome%20%7D%5Csim%5Ctext%7B%20fixed%20effects%7D%7D%5E1%5C,%20+%20%5C,%20(1%20+%20%5Cunderbrace%7B%5Ctext%7Bslopes%7D%7D_3%5C,%20%7C%5C,%20%5Coverbrace%7B%5Ctext%7Bgrouping%20structure%7D%7D%5E2%20)%0A"></p>
+<ol type="1">
+<li>Just like the <code>lm()</code>s we have used in the past, think about what we want to <em>test</em>. This should provide the outcome and the structure of our fixed effects.</li>
+<li>Think about how the observations are clustered/grouped. This should tell us how to specify the grouping structure in the random effects.</li>
+<li>Think about which slopes (i.e.&nbsp;which terms in our fixed effects) could feasibly vary between the clusters. This provides you with what to put in as random slopes.</li>
+</ol>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-22-contents" aria-controls="callout-22" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-22" class="callout-22-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>For additional reading on multilevel models and how to fit them in R, see <a href="https://uoepsy.github.io/lmm/02_lmm.html#multilevel-models-in-r" target="_blank">Chapter 2: Multilevel Models in R</a>.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT HERE:</span></span>
+<span id="cb51-2"></span>
+<span id="cb51-3">ef_fixedeffect <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb51-4">ef_randomintercept <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> PID), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb51-5">ef_randomslope <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> PID), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb51-6"></span>
+<span id="cb51-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(ef_randomslope)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: SDMT ~ audio * headphones + (1 + audio | PID)
+   Data: efdat
+
+REML criterion at convergence: 2376.2
+
+Scaled residuals: 
+     Min       1Q   Median       3Q      Max 
+-2.34520 -0.62861  0.05762  0.60807  2.21250 
+
+Random effects:
+ Groups   Name             Variance Std.Dev. Corr       
+ PID      (Intercept)      51.17    7.153               
+          audiomusic       13.69    3.700     0.03      
+          audiowhite_noise 15.22    3.901    -0.25 -0.16
+ Residual                  31.49    5.612               
+Number of obs: 360, groups:  PID, 30
+
+Fixed effects:
+                             Estimate Std. Error       df t value Pr(&gt;|t|)    
+(Intercept)                  33.25799    1.98897 28.22065  16.721 3.54e-16 ***
+audiomusic                   -8.01731    1.41149 27.58766  -5.680 4.58e-06 ***
+audiowhite_noise             -0.03044    1.44502 26.32588  -0.021 0.983354    
+headphonesH                   6.85313    2.81170 28.19226   2.437 0.021355 *  
+audiomusic:headphonesH       -3.58748    2.00129 27.94011  -1.793 0.083875 .  
+audiowhite_noise:headphonesH  8.02458    2.04498 26.46166   3.924 0.000556 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) audmsc adwht_ hdphnH adms:H
+audiomusic  -0.174                            
+audiowht_ns -0.352  0.192                     
+headphonesH -0.707  0.123  0.249              
+admsc:hdphH  0.123 -0.705 -0.135 -0.173       
+adwht_ns:hH  0.249 -0.136 -0.707 -0.351  0.191</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-23-contents" aria-controls="callout-23" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — fixed effects
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-23" class="callout-23-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>The question “<em>How do different types of audio interfere with executive functioning</em>” means we are interested in the effects of audio type (<code>audio</code>) on executive functioning (<code>SDMT</code> scores), so we will want:</p>
+<pre><code>lmer(SDMT ~ audio ...</code></pre>
+<p>However, the research aim also asks “<em>… and does this interference differ depending upon whether or not noise-cancelling headphones are used?</em>” which suggests that we are interested in the interaction <code>SDMT ~ audio * headphones</code></p>
+<pre><code>lmer(SDMT ~ audio * headphones + ...</code></pre>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-24-contents" aria-controls="callout-24" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — hierarchical data structure
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-24" class="callout-24-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>There are lots of ways that our data is grouped. We have:</p>
+<ul>
+<li>3 different groups of audio type (no_audio, white_noise, music)</li>
+<li>2 groups of listening condition (S, H)</li>
+<li>30 groups of participants (“PPT_01”, “PPT_02”, “PPT_03”, …)</li>
+</ul>
+<p>The effects of audio type and headphones are both things we actually want to <em>test</em> — these variables are in our fixed effects. The levels of audio and headphones are not just a random sample from a wider population of levels — they’re a specific set of things we want to compare SDMT scores between.</p>
+<p>Compare this with the participants — we don’t care about if there is a difference in SDMT scores between e.g., “PPT_03” and “PPT_28”. The participants themselves are just a sample of people that we have taken from a wider population. This makes thinking of “by-participant random effects” a sensible approach — we model differences between participants as a normal distribution of deviations around some average:</p>
+<pre><code>lmer(SDMT ~ audio * headphones + (1 + ... | PID)</code></pre>
+<p>The minimum that we can include is the random intercept. What <code>(1|PID)</code> specifies is that “participants vary in their SDMT scores”. This makes sense — we would expect some participants to have higher executive functioning (and so will tend to score high on the SDMT), and others to have lower functioning (and so tend to score lower).</p>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-26-contents" aria-controls="callout-26" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution — random slopes
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-26" class="callout-26-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>We can also include a random by-participant effect of <code>audio</code>. <code>audio|PID</code> specifies that the effect of audio type on SDMT varies by participant. This seems feasible — music might be very distracting (and interfere a lot with the test) for some participants, but have a negligible effect for others.</p>
+<pre><code>lmer(SDMT ~ audio * headphones +
+              (1 + audio | PID), data = efdat)</code></pre>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-25-contents" aria-controls="callout-25" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Why can’t we have <code>(headphones|PID)</code>?
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-25" class="callout-25-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Why can we fit <code>(1 + audio | PID)</code> but not <code>(1 + headphones | PID)</code>, or both <code>(1 + audio + headphones | PID)</code> or <code>(1 + audio * headphones | PID)</code>?</p>
+<p>Remember that <code>y ~ ... + (x | g)</code> is saying “the slope of y~x varies by g”. Such a sentence only makes sense if “the slope of y~x” is defined for every (or most) groups.</p>
+<p>For the <code>headphones</code> predictor, every participant is <em>either</em> in the “S” (speakers) condition <em>or</em> the “H” (headphones) condition. This means that “the effect of headphones on SDMT” <em>doesn’t exist</em> for any single participant! This means it makes no sense to try and think of the effect as ‘varying by participant’.</p>
+<p>Compare this to the <code>audio</code> predictor, for which the effect <em>does</em> exist for a single given participant, therefore it is possible to think of it as being different for different participants (e.g.&nbsp;PPT_30’s performance improves with white noise, but PPT_16’s performance does not).</p>
+<p>The plots below may help to cement this idea:</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-43-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-43-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb57-2"></span>
+<span id="cb57-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#I would say they are pretty consistent..</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-9" class="level3">
+<h3 class="anchored" data-anchor-id="question-9">Question 9</h3>
+<p>We now have a model, but we don’t have any p-values or confidence intervals or anything — i.e.&nbsp;we have no inferential criteria on which to draw conclusions. There are a whole load of different methods available for drawing inferences from multilevel models, which means it can be a bit of a never-ending rabbit hole. For now, we’ll just use the ‘quick and easy’ approach provided by the <strong>lmerTest</strong> package seen in the lectures.</p>
+<p>Using the <strong>lmerTest</strong> package, re-fit your model, and you should now get some p-values!</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-27-contents" aria-controls="callout-27" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-27" class="callout-27-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>If you use <code>library(lmerTest)</code> to load the package, then <em>every single</em> model you fit will show p-values calculated with the Satterthwaite method. Personally, I would rather this is not the case, so I often opt to fit specific models with these p-values without ever loading the package: <code>modp &lt;- lmerTest::lmer(y ~ 1 + x + ....</code></p>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-28-contents" aria-controls="callout-28" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Caution</span>Optional: a model comparison
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-28" class="callout-28-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>If we want to go down the model comparison route, we just need to isolate the relevant part(s) of the model that we are interested in.</p>
+<p>Remember, model comparison is sometimes a useful way of testing a <em>set</em> of coefficients. For instance, in this example the interaction involves estimating <em>two</em> terms: <code>audiomusic:headphonesH</code> and <code>audiowhite_noise:headphonesH</code>.</p>
+<p>To test the interaction as a whole, we can create a model without the interaction, and then compare it. The <code>SATmodcomp()</code> function from the <strong>pbkrtest</strong> package provides a way of conducting an F test with the same Satterthwaite method of approximating the degrees of freedom:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1">sdmt_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb58-2">              (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> PID), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb58-3">sdmt_res <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> headphones <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb58-4">                   (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> PID), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb58-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(pbkrtest)</span>
+<span id="cb58-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SATmodcomp</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">largeModel =</span> sdmt_mod, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">smallModel =</span> sdmt_res)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>large : SDMT ~ audio * headphones + (1 + audio | PID)
+small : SDMT ~ audio + headphones + (1 + audio | PID)
+     statistic    ndf    ddf   p.value    
+[1,]    11.051  2.000 26.909 0.0003136 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT HERE:</span></span>
+<span id="cb60-2">sdmt_mod_test <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> lmerTest<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb60-3">              (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> PID), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb60-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(sdmt_mod_test)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: SDMT ~ audio * headphones + (1 + audio | PID)
+   Data: efdat
+
+REML criterion at convergence: 2376.2
+
+Scaled residuals: 
+     Min       1Q   Median       3Q      Max 
+-2.34520 -0.62861  0.05762  0.60807  2.21250 
+
+Random effects:
+ Groups   Name             Variance Std.Dev. Corr       
+ PID      (Intercept)      51.17    7.153               
+          audiomusic       13.69    3.700     0.03      
+          audiowhite_noise 15.22    3.901    -0.25 -0.16
+ Residual                  31.49    5.612               
+Number of obs: 360, groups:  PID, 30
+
+Fixed effects:
+                             Estimate Std. Error       df t value Pr(&gt;|t|)    
+(Intercept)                  33.25799    1.98897 28.22065  16.721 3.54e-16 ***
+audiomusic                   -8.01731    1.41149 27.58766  -5.680 4.58e-06 ***
+audiowhite_noise             -0.03044    1.44502 26.32588  -0.021 0.983354    
+headphonesH                   6.85313    2.81170 28.19226   2.437 0.021355 *  
+audiomusic:headphonesH       -3.58748    2.00129 27.94011  -1.793 0.083875 .  
+audiowhite_noise:headphonesH  8.02458    2.04498 26.46166   3.924 0.000556 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) audmsc adwht_ hdphnH adms:H
+audiomusic  -0.174                            
+audiowht_ns -0.352  0.192                     
+headphonesH -0.707  0.123  0.249              
+admsc:hdphH  0.123 -0.705 -0.135 -0.173       
+adwht_ns:hH  0.249 -0.136 -0.707 -0.351  0.191</code></pre>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-29-contents" aria-controls="callout-29" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-29" class="callout-29-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1">sdmt_mod <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> lmerTest<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lmer</span>(SDMT <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> headphones <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb62-2">              (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> audio <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|</span> PID), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> efdat)</span>
+<span id="cb62-3"></span>
+<span id="cb62-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(sdmt_mod)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: SDMT ~ audio * headphones + (1 + audio | PID)
+   Data: efdat
+
+REML criterion at convergence: 2376.2
+
+Scaled residuals: 
+     Min       1Q   Median       3Q      Max 
+-2.34520 -0.62861  0.05762  0.60807  2.21250 
+
+Random effects:
+ Groups   Name             Variance Std.Dev. Corr       
+ PID      (Intercept)      51.17    7.153               
+          audiomusic       13.69    3.700     0.03      
+          audiowhite_noise 15.22    3.901    -0.25 -0.16
+ Residual                  31.49    5.612               
+Number of obs: 360, groups:  PID, 30
+
+Fixed effects:
+                             Estimate Std. Error       df t value Pr(&gt;|t|)    
+(Intercept)                  33.25799    1.98897 28.22065  16.721 3.54e-16 ***
+audiomusic                   -8.01731    1.41149 27.58766  -5.680 4.58e-06 ***
+audiowhite_noise             -0.03044    1.44502 26.32588  -0.021 0.983354    
+headphonesH                   6.85313    2.81170 28.19226   2.437 0.021355 *  
+audiomusic:headphonesH       -3.58748    2.00129 27.94011  -1.793 0.083875 .  
+audiowhite_noise:headphonesH  8.02458    2.04498 26.46166   3.924 0.000556 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) audmsc adwht_ hdphnH adms:H
+audiomusic  -0.174                            
+audiowht_ns -0.352  0.192                     
+headphonesH -0.707  0.123  0.249              
+admsc:hdphH  0.123 -0.705 -0.135 -0.173       
+adwht_ns:hH  0.249 -0.136 -0.707 -0.351  0.191</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb64-2"></span>
+<span id="cb64-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#They're the same.</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-10" class="level3">
+<h3 class="anchored" data-anchor-id="question-10">Question 10</h3>
+<p>We’ve already seen in the example with the different types of toys (above) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are really interested in are the estimates of (and uncertainty around) our <em>fixed effects</em> (i.e.&nbsp;estimates for clusters <em>on average</em>).</p>
+<p>Using tools like the <strong>effects</strong> package can provide us with the values of the outcome across levels of a specific fixed predictor (holding other predictors at their mean).</p>
+<p>This should get you started:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb65-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(effects)</span>
+<span id="cb65-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">effect</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">term =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"audio*headphones"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mod =</span> sdmt_mod) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb65-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>()</span></code></pre></div></div>
+</details>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-30-contents" aria-controls="callout-30" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-30" class="callout-30-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>For additional reading, see <a href="https://uoepsy.github.io/lmm/02_lmm.html#visualising-models" target="_blank">Chapter 2: Visualising Models</a>. The logic is just the same as for regular regression — it’s just that the estimated effects are from an <code>lmer()</code> instead of an <code>lm()</code>/<code>glm()</code>.</p>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#ENTER YOUR ATTEMPT HERE:</span></span>
+<span id="cb66-2">ef_df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">effect</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">term =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"audio*headphones"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mod =</span> sdmt_mod) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb66-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>()</span>
+<span id="cb66-4"></span>
+<span id="cb66-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(ef_df, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> audio, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> fit, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin=</span>lower,<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax=</span>upper, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> headphones))<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb66-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">position_dodge</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.3</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-50-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-31-contents" aria-controls="callout-31" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-31" class="callout-31-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(effects)</span>
+<span id="cb67-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">effect</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">term =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"audio*headphones"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mod =</span> sdmt_mod) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb67-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.data.frame</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span></span>
+<span id="cb67-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x=</span>audio,<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y=</span>fit,</span>
+<span id="cb67-5">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin=</span>lower,<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax=</span>upper,</span>
+<span id="cb67-6">             <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col=</span>headphones))<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb67-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_pointrange</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lwd=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/unnamed-chunk-51-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb68-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb68-2"></span>
+<span id="cb68-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#I used points and the solution used point range.</span></span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="question-11" class="level3">
+<h3 class="anchored" data-anchor-id="question-11">Question 11</h3>
+<p>Now we have some p-values and a plot, try to create a short write-up of the analysis and results.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-32-contents" aria-controls="callout-32" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-32" class="callout-32-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Think about the principles that have guided you during write-ups thus far.</p>
+<p>The aim in writing a statistical report should be that a reader is able to more or less replicate your analyses <strong>without</strong> referring to your analysis code. Furthermore, it should be possible for a reader to understand and replicate your work <em>even if they use something other than R</em>. This requires detailing all of the steps you took in conducting the analysis, but without simply referring to R code.</p>
+<ul>
+<li>Provide a description of the sample that is used in the analysis, and any steps that you took to get this sample (i.e.&nbsp;data cleaning/removal)</li>
+<li>Describe the model/test and how it addresses the research question. What is the structure of the model, and how did you get to this model? <em>(You don’t need a fancy model equation, you can describe in words!)</em>.</li>
+<li>Present (visually and numerically) the key results of the coefficient tests or model comparisons, and explain what these mean in the context of the research question (this could be things like practical significance of the effect size, and the group-level variability in the effects).</li>
+</ul>
+</div>
+</div>
+</div>
+<p>We tested how different types of audio interfere with executive functioning, and whether the interference differ depending upon listening context (via speakers vs.&nbsp;noise canceling headphones). Symbol Digit Modalities Test (SDMT) scores were employed to measure executive function in each trial. Data were available from 30 participants, each completing up to 15 trials (5 per audio condition: no audio, white noise, music) across two listening contexts (speakers or noise-cancelling headphones). Due to missing observations, the analysis used 360 observations in total, averaging 12 trials per participant.</p>
+<p>We ran multilevel model to test an effect of audio type, listening context, and their interaction on executive function (SDMT) with a random intercept and random slope of each participant. The reference levels were ‘no audio’ and ‘speakers’.</p>
+<p>In the speakers condition, music significantly reduced SDMT scores relative to no audio (b = −8.0, SE = 1.4, p &lt; .001), while white noise had no reliable effect (b = −0.03, SE = 1.4, p = .98). Noise cancelling headphones were associated with higher SDMT scores compared to speakers (b = +6.9, SE = 2.8, p = .021). The interaction between audio type and listening context was significant for white noise (b = +8.0, SE = 2.0, p &lt; .001) but not for music (b = −3.6, SE = 2.0, p = .084).</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-34-contents" aria-controls="callout-34" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Solution
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-34" class="callout-34-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This is not a perfect write-up (there’s not really any such thing!).</p>
+</div>
+</div>
+<p>SDMT scores were modelled using linear mixed effects regression, with fixed effects of audio-type (no audio/white noise/music, treatment coded with no audio as the reference level), audio delivery (speakers vs ANC-headphones, treatment coded with speakers as the reference level) and their interaction. Participant-level random intercepts and random slopes of audio-type were also included. The inclusion of the interaction term between audio-type and audio-delivery was used to address the question of whether the interference of different audio on executive function depends on whether it is heard via noise-cancelling headphones. A model comparison was conducted between the full model and a restricted model that was identical to the full model with the exception that the interaction term was excluded. Models were fitted using the <strong>lme4</strong> package in R, and estimated with restricted estimation maximum likelihood (REML). Denominator degrees of freedom for all comparisons and tests were approximated using the Satterthwaite method.</p>
+<p>Inclusion of the interaction between headphones and audio-type was found to improve model fit (<img src="https://latex.codecogs.com/png.latex?F(2,%2026.9)%20=%2011.05,%20p%20%3C%20.001">), suggesting that the interference of different types of audio on executive functioning is dependent upon whether the audio is presented through ANC-headphones or through speakers.</p>
+<p>Participants not wearing headphones and presented with no audio scored on average 33.26 on the SDMT. For participants without headphones, listening to music via speakers was associated with lower scores compared to no audio (<img src="https://latex.codecogs.com/png.latex?b%20=%20-8.02,%20t(27.59)=-5.68,%20p%20%3C0.001">), but there was no significant difference between white noise and no audio.</p>
+<p>With no audio playing, wearing ANC-headphones was associated with higher SDMT scores compared to those wearing no headphones (<img src="https://latex.codecogs.com/png.latex?b%20=%206.85,%20t(28.19)=2.44,%20p%20=0.021">). The apparent detrimental effect of music on SDMT scores was not significantly different in the headphones condition compared to the no-headphones condition (<img src="https://latex.codecogs.com/png.latex?b%20=%20-3.59,%20t(27.94)=-1.79,%20p%20=0.084">). Compared to those listening through speakers, white noise was associated with a greater increase in scores over no audio, when listening via ANC-headphones (<img src="https://latex.codecogs.com/png.latex?b%20=%208.02,%20t(26.46)=3.92,%20p%20%3C0.001">).</p>
+<p>There was considerable variability in baseline (i.e.&nbsp;no-audio) SDMT scores across participants (SD = 7.15), with participants showing similar variability in the effects of music (SD = 3.7) and of white-noise (SD = 3.9). A weak negative correlation (-0.25) between participant-level intercepts and effects of white-noise indicated that people who score higher in the no-audio condition tended to be more negatively affected by white-noise. A similar weak negative correlation (-0.16) between music and white-noise effects suggests participants who were more positively affected by one type of audio tended to be more negatively affected by the other.</p>
+<p>These results suggest that music appears to interfere with executive functioning (lower SDMT scores) compared to listening to no audio, and this is not dependent upon whether it is heard through headphones or speakers. When listening via speakers, white noise was not associated with differences in executive functioning compared to no audio, but this was different for those listening via headphones, in which white noise saw a greater increase in performance. Furthermore, there appear to be benefits for executive functioning from wearing ANC-headphones even when not listening to audio, perhaps due to the noise cancellation. The pattern of findings are displayed in Figure&nbsp;1.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-efplot" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-efplot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab_files/figure-html/fig-efplot-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-efplot-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Interaction between the type (no audio/white noise/music) and the delivery (speakers/ANC headphones) on executive functioning task (SDMT)
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<table style="border-collapse:collapse; border:none;">
+<tbody><tr>
+<th style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm;  text-align:left; ">&nbsp;</th>
+<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">SDMT</th>
+</tr>
+<tr>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  text-align:left; ">Predictors</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">Estimates</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">Statistic</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">p</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">df</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">(Intercept)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">33.26</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">16.72</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "><strong>&lt;0.001</strong></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">28.22</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">audio [music]</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">-8.02</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">-5.68</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "><strong>&lt;0.001</strong></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">27.59</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">audio [white_noise]</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">-0.03</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">-0.02</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.983</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">26.33</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">headphones [H]</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.85</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">2.44</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "><strong>0.021</strong></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">28.19</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">audio [music] ×<br>headphones [H]</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">-3.59</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">-1.79</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.084</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">27.94</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">audio [white_noise] ×<br>headphones [H]</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">8.02</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">3.92</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "><strong>0.001</strong></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">26.46</td>
+</tr>
+<tr>
+<td colspan="5" style="font-weight:bold; text-align:left; padding-top:.8em;">Random Effects</td>
+</tr>
+
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">σ<sup>2</sup></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">31.49</td>
+</tr>
+
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">τ<sub>00</sub> <sub>PID</sub></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">51.17</td>
+
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">τ<sub>11</sub> <sub>PID.audiomusic</sub></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">13.69</td>
+
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">τ<sub>11</sub> <sub>PID.audiowhite_noise</sub></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">15.22</td>
+
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">ρ<sub>01</sub></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">0.03</td>
+
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;"></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">-0.25</td>
+
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">ICC</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">0.64</td>
+
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">N <sub>PID</sub></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">30</td>
+</tr><tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm; border-top:1px solid;">Observations</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">360</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">Marginal R<sup>2</sup> / Conditional R<sup>2</sup></td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">0.392 / 0.783</td>
+</tr>
+
+</tbody></table>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?</span></span>
+<span id="cb69-2"></span>
+<span id="cb69-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># I didn't mention the model comparison part and the specific R package I used. And I also forgot to include participant variability.</span></span></code></pre></div></div>
+</details>
+</div>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <guid>https://your-website-url.example.com/posts/lab_Mar25/MLM_Lab.html</guid>
+  <pubDate>Wed, 25 Mar 2026 04:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Lab 5: Poisson Regression</title>
   <dc:creator>Yeaju Diana Kim</dc:creator>
