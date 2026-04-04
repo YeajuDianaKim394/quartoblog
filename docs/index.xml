@@ -1026,12 +1026,12 @@ Formula: bill_length_mm ~ 1 + body_mass_g
 
 Regression Coefficients:
             Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-Intercept      32.12      3.57    25.05    39.05 1.00     5581     3239
-body_mass_g     0.00      0.00     0.00     0.01 1.00     5656     3145
+Intercept      32.13      3.45    25.39    39.09 1.00     5028     2768
+body_mass_g     0.00      0.00     0.00     0.01 1.00     5077     2804
 
 Further Distributional Parameters:
       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-sigma     2.93      0.26     2.47     3.48 1.00     2081     1926
+sigma     2.93      0.27     2.47     3.49 1.00     1888     1789
 
 Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 and Tail_ESS are effective sample size measures, and Rhat is the potential
@@ -1125,9 +1125,9 @@ background-color: null;
 font-style: inherit;">fixef</span>(fit1.b)</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>                Estimate    Est.Error        Q2.5        Q97.5
-Intercept   32.124652051 3.5748762269 25.04905316 39.048522748
-body_mass_g  0.004477856 0.0009519088  0.00263626  0.006373615</code></pre>
+<pre><code>                Estimate    Est.Error         Q2.5        Q97.5
+Intercept   32.127095898 3.4513072020 25.390022489 39.088603452
+body_mass_g  0.004475686 0.0009197475  0.002641097  0.006289906</code></pre>
 </div>
 </div>
 <p>In this case, the results are very similar.</p>
@@ -1163,9 +1163,9 @@ font-style: inherit;">tidy</span>(fit1.b)</span></code></pre></div></div>
 <pre><code># A tibble: 3 × 8
   effect   component group    term         estimate std.error conf.low conf.high
   &lt;chr&gt;    &lt;chr&gt;     &lt;chr&gt;    &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
-1 fixed    cond      &lt;NA&gt;     (Intercept)  32.1      3.57     25.0      39.0    
-2 fixed    cond      &lt;NA&gt;     body_mass_g   0.00448  0.000952  0.00264   0.00637
-3 ran_pars cond      Residual sd__Observa…  2.93     0.260     2.47      3.48   </code></pre>
+1 fixed    cond      &lt;NA&gt;     (Intercept)  32.1      3.45     25.4      39.1    
+2 fixed    cond      &lt;NA&gt;     body_mass_g   0.00448  0.000920  0.00264   0.00629
+3 ran_pars cond      Residual sd__Observa…  2.93     0.267     2.47      3.49   </code></pre>
 </div>
 </div>
 <p>Here’s how to wrangle and combine these two results into a single data frame. Then we’ll make a coefficient plot.</p>
@@ -1659,8 +1659,8 @@ make: *** [C:/PROGRA~1/R/R-43~1.3/etc/x64/Makeconf:265: foo.o] Error 1</code></p
 <pre><code>
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 1).
 Chain 1: 
-Chain 1: Gradient evaluation took 3.6e-05 seconds
-Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.36 seconds.
+Chain 1: Gradient evaluation took 2.9e-05 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.29 seconds.
 Chain 1: Adjust your expectations accordingly!
 Chain 1: 
 Chain 1: 
@@ -1677,15 +1677,15 @@ Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 1: 
-Chain 1:  Elapsed Time: 0.06 seconds (Warm-up)
-Chain 1:                0.035 seconds (Sampling)
-Chain 1:                0.095 seconds (Total)
+Chain 1:  Elapsed Time: 0.057 seconds (Warm-up)
+Chain 1:                0.04 seconds (Sampling)
+Chain 1:                0.097 seconds (Total)
 Chain 1: 
 
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 2).
 Chain 2: 
-Chain 2: Gradient evaluation took 7e-06 seconds
-Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.07 seconds.
+Chain 2: Gradient evaluation took 9e-06 seconds
+Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.09 seconds.
 Chain 2: Adjust your expectations accordingly!
 Chain 2: 
 Chain 2: 
@@ -1702,15 +1702,15 @@ Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 2: 
-Chain 2:  Elapsed Time: 0.067 seconds (Warm-up)
-Chain 2:                0.037 seconds (Sampling)
-Chain 2:                0.104 seconds (Total)
+Chain 2:  Elapsed Time: 0.068 seconds (Warm-up)
+Chain 2:                0.042 seconds (Sampling)
+Chain 2:                0.11 seconds (Total)
 Chain 2: 
 
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 3).
 Chain 3: 
-Chain 3: Gradient evaluation took 9e-06 seconds
-Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.09 seconds.
+Chain 3: Gradient evaluation took 1.1e-05 seconds
+Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.11 seconds.
 Chain 3: Adjust your expectations accordingly!
 Chain 3: 
 Chain 3: 
@@ -1727,15 +1727,15 @@ Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 3: 
-Chain 3:  Elapsed Time: 0.073 seconds (Warm-up)
-Chain 3:                0.052 seconds (Sampling)
-Chain 3:                0.125 seconds (Total)
+Chain 3:  Elapsed Time: 0.06 seconds (Warm-up)
+Chain 3:                0.031 seconds (Sampling)
+Chain 3:                0.091 seconds (Total)
 Chain 3: 
 
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 4).
 Chain 4: 
-Chain 4: Gradient evaluation took 1.5e-05 seconds
-Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.15 seconds.
+Chain 4: Gradient evaluation took 1.1e-05 seconds
+Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.11 seconds.
 Chain 4: Adjust your expectations accordingly!
 Chain 4: 
 Chain 4: 
@@ -1752,9 +1752,9 @@ Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 4: 
-Chain 4:  Elapsed Time: 0.06 seconds (Warm-up)
-Chain 4:                0.032 seconds (Sampling)
-Chain 4:                0.092 seconds (Total)
+Chain 4:  Elapsed Time: 0.068 seconds (Warm-up)
+Chain 4:                0.039 seconds (Sampling)
+Chain 4:                0.107 seconds (Total)
 Chain 4: </code></pre>
 </div>
 <details class="code-fold">
@@ -1931,16 +1931,16 @@ font-style: inherit;">as_draws_df</span>(fit1.b)</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A draws_df: 1000 iterations, 4 chains, and 6 variables
    b_Intercept b_body_mass_g sigma Intercept lprior lp__
-1           32        0.0046   2.9        49   -4.3 -171
-2           33        0.0043   3.0        49   -4.3 -171
-3           33        0.0043   3.0        49   -4.3 -172
-4           26        0.0060   2.8        49   -4.3 -173
-5           39        0.0026   2.9        49   -4.3 -173
-6           29        0.0052   2.9        49   -4.3 -171
-7           32        0.0046   2.8        49   -4.3 -171
-8           31        0.0048   2.8        49   -4.3 -171
-9           34        0.0038   3.1        49   -4.3 -172
-10          31        0.0048   2.7        49   -4.2 -171
+1           29        0.0050   2.9        48   -4.4 -176
+2           30        0.0050   2.5        49   -4.2 -172
+3           36        0.0036   2.6        49   -4.2 -173
+4           30        0.0051   2.6        49   -4.2 -172
+5           26        0.0061   2.6        49   -4.2 -174
+6           29        0.0054   2.6        49   -4.2 -172
+7           34        0.0040   2.3        49   -4.2 -175
+8           31        0.0047   2.3        49   -4.2 -175
+9           30        0.0049   2.4        49   -4.2 -174
+10          32        0.0046   3.1        49   -4.3 -171
 # ... with 3990 more draws
 # ... hidden reserved variables {'.chain', '.iteration', '.draw'}</code></pre>
 </div>
@@ -2067,8 +2067,8 @@ font-style: inherit;">0.975</span>))</span></code></pre></div></div>
 <pre><code># A tibble: 2 × 5
   name              mean       sd       ll       ul
   &lt;chr&gt;            &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
-1 b_Intercept   32.1     3.57     25.0     39.0    
-2 b_body_mass_g  0.00448 0.000952  0.00264  0.00637</code></pre>
+1 b_Intercept   32.1     3.45     25.4     39.1    
+2 b_body_mass_g  0.00448 0.000920  0.00264  0.00629</code></pre>
 </div>
 </div>
 <p>Notice how these values match up exactly with those from <code>fixef()</code>.</p>
@@ -2080,9 +2080,9 @@ background-color: null;
 font-style: inherit;">fixef</span>(fit1.b)</span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>                Estimate    Est.Error        Q2.5        Q97.5
-Intercept   32.124652051 3.5748762269 25.04905316 39.048522748
-body_mass_g  0.004477856 0.0009519088  0.00263626  0.006373615</code></pre>
+<pre><code>                Estimate    Est.Error         Q2.5        Q97.5
+Intercept   32.127095898 3.4513072020 25.390022489 39.088603452
+body_mass_g  0.004475686 0.0009197475  0.002641097  0.006289906</code></pre>
 </div>
 </div>
 <p>Thus,</p>
@@ -2186,8 +2186,8 @@ font-style: inherit;"># variance/covariance metric</span></span></code></pre></d
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>               Intercept   body_mass_g
-Intercept   12.779740037 -3.385704e-03
-body_mass_g -0.003385704  9.061303e-07</code></pre>
+Intercept   11.911521403 -3.156465e-03
+body_mass_g -0.003156465  8.459355e-07</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -2203,8 +2203,8 @@ font-style: inherit;"># correlation metric</span></span></code></pre></div></div
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>             Intercept body_mass_g
-Intercept    1.0000000  -0.9949304
-body_mass_g -0.9949304   1.0000000</code></pre>
+Intercept    1.0000000  -0.9943716
+body_mass_g -0.9943716   1.0000000</code></pre>
 </div>
 </div>
 <p>This correlation/covariance among the parameters is not unique to Bayesian models. Here’s the <code>vcov()</code> output for the OLS model.</p>
@@ -2303,12 +2303,12 @@ font-style: inherit;">glimpse</span>(draws)</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 4,000
 Columns: 9
-$ b_Intercept   &lt;dbl&gt; 31.86479, 32.83617, 33.07344, 26.13245, 38.98914, 29.453…
-$ b_body_mass_g &lt;dbl&gt; 0.004567104, 0.004325527, 0.004344231, 0.006007157, 0.00…
-$ sigma         &lt;dbl&gt; 2.905245, 3.010440, 3.049592, 2.769443, 2.857763, 2.9169…
-$ Intercept     &lt;dbl&gt; 48.91419, 48.98375, 49.29083, 48.55770, 48.88047, 49.025…
-$ lprior        &lt;dbl&gt; -4.280999, -4.303216, -4.301676, -4.275746, -4.271471, -…
-$ lp__          &lt;dbl&gt; -170.8386, -171.0689, -171.8354, -172.7441, -172.7851, -…
+$ b_Intercept   &lt;dbl&gt; 29.23189, 30.23179, 35.93407, 30.19846, 26.38436, 28.936…
+$ b_body_mass_g &lt;dbl&gt; 0.004970215, 0.005001860, 0.003557048, 0.005084222, 0.00…
+$ sigma         &lt;dbl&gt; 2.867902, 2.548253, 2.564532, 2.564411, 2.559035, 2.6307…
+$ Intercept     &lt;dbl&gt; 47.78614, 48.90418, 49.21284, 49.17831, 49.21109, 49.161…
+$ lprior        &lt;dbl&gt; -4.399952, -4.197577, -4.187301, -4.188353, -4.186114, -…
+$ lp__          &lt;dbl&gt; -175.6048, -171.9539, -172.9467, -172.4930, -174.4230, -…
 $ .chain        &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
 $ .iteration    &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1…
 $ .draw         &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1…</code></pre>
@@ -2912,14 +2912,14 @@ font-style: inherit;"># what?</span></span>
   parameter statistic    value
   &lt;chr&gt;     &lt;chr&gt;        &lt;dbl&gt;
 1 beta[0]   mean      32.1    
-2 beta[0]   median    32.2    
-3 beta[0]   mode      32.2    
+2 beta[0]   median    32.1    
+3 beta[0]   mode      31.8    
 4 beta[1]   mean       0.00448
-5 beta[1]   median     0.00447
-6 beta[1]   mode       0.00443
+5 beta[1]   median     0.00449
+6 beta[1]   mode       0.00460
 7 sigma     mean       2.93   
-8 sigma     median     2.91   
-9 sigma     mode       2.84   </code></pre>
+8 sigma     median     2.92   
+9 sigma     mode       2.90   </code></pre>
 </div>
 </div>
 <p>Now plot.</p>
@@ -3113,9 +3113,9 @@ background-color: null;
 font-style: inherit;"># means</span></span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>                Estimate    Est.Error        Q2.5        Q97.5
-Intercept   32.124652051 3.5748762269 25.04905316 39.048522748
-body_mass_g  0.004477856 0.0009519088  0.00263626  0.006373615</code></pre>
+<pre><code>                Estimate    Est.Error         Q2.5        Q97.5
+Intercept   32.127095898 3.4513072020 25.390022489 39.088603452
+body_mass_g  0.004475686 0.0009197475  0.002641097  0.006289906</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -3130,9 +3130,9 @@ background-color: null;
 font-style: inherit;"># medians</span></span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>                Estimate    Est.Error        Q2.5        Q97.5
-Intercept   32.158508926 3.5288235237 25.04905316 39.048522748
-body_mass_g  0.004469488 0.0009289668  0.00263626  0.006373615</code></pre>
+<pre><code>                Estimate    Est.Error         Q2.5        Q97.5
+Intercept   32.058147223 3.2776262114 25.390022489 39.088603452
+body_mass_g  0.004489396 0.0008803909  0.002641097  0.006289906</code></pre>
 </div>
 </div>
 </section>
@@ -3220,14 +3220,16 @@ font-style: inherit;">`</span>))</span></code></pre></div></div>
 <pre><code># A tibble: 1 × 1
   MAD_SD
    &lt;dbl&gt;
-1   3.53</code></pre>
+1   3.28</code></pre>
 </div>
 </div>
 <p>Base <strong>R</strong> also has a <code>mad()</code> function.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb105" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1">?mad</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb105" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb105-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#?mad</span></span>
 <span id="cb105-2"></span>
 <span id="cb105-3">draws <span class="sc" style="color: #5E5E5E;
 background-color: null;
@@ -3244,7 +3246,7 @@ font-style: inherit;">mad</span>(beta0))</span></code></pre></div></div>
 <pre><code># A tibble: 1 × 1
   MAD_SD
    &lt;dbl&gt;
-1   3.53</code></pre>
+1   3.28</code></pre>
 </div>
 </div>
 <p>You can request the MAD SD from many <strong>brms</strong> functions by setting <code>robust = TRUE</code>.</p>
@@ -3258,9 +3260,9 @@ background-color: null;
 font-style: inherit;"># SD</span></span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>                Estimate    Est.Error        Q2.5        Q97.5
-Intercept   32.124652051 3.5748762269 25.04905316 39.048522748
-body_mass_g  0.004477856 0.0009519088  0.00263626  0.006373615</code></pre>
+<pre><code>                Estimate    Est.Error         Q2.5        Q97.5
+Intercept   32.127095898 3.4513072020 25.390022489 39.088603452
+body_mass_g  0.004475686 0.0009197475  0.002641097  0.006289906</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -3275,9 +3277,9 @@ background-color: null;
 font-style: inherit;"># MAD SD</span></span></code></pre></div></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>                Estimate    Est.Error        Q2.5        Q97.5
-Intercept   32.158508926 3.5288235237 25.04905316 39.048522748
-body_mass_g  0.004469488 0.0009289668  0.00263626  0.006373615</code></pre>
+<pre><code>                Estimate    Est.Error         Q2.5        Q97.5
+Intercept   32.058147223 3.2776262114 25.390022489 39.088603452
+body_mass_g  0.004489396 0.0008803909  0.002641097  0.006289906</code></pre>
 </div>
 </div>
 <ul>
@@ -3312,12 +3314,12 @@ Formula: bill_length_mm ~ 1 + body_mass_g
 
 Regression Coefficients:
             Estimate Est.Error l-80% CI u-80% CI Rhat Bulk_ESS Tail_ESS
-Intercept      32.12      3.57    27.48    36.72 1.00     5581     3239
-body_mass_g     0.00      0.00     0.00     0.01 1.00     5656     3145
+Intercept      32.13      3.45    27.80    36.51 1.00     5028     2768
+body_mass_g     0.00      0.00     0.00     0.01 1.00     5077     2804
 
 Further Distributional Parameters:
       Estimate Est.Error l-80% CI u-80% CI Rhat Bulk_ESS Tail_ESS
-sigma     2.93      0.26     2.61     3.26 1.00     2081     1926
+sigma     2.93      0.27     2.60     3.29 1.00     1888     1789
 
 Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 and Tail_ESS are effective sample size measures, and Rhat is the potential
@@ -3357,7 +3359,7 @@ font-style: inherit;"># mean and 95% percentile interval</span></span></code></p
 <pre><code># A tibble: 1 × 6
   beta0 .lower .upper .width .point .interval
   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;  &lt;chr&gt;    
-1  32.1   25.0   39.0   0.95 mean   qi       </code></pre>
+1  32.1   25.4   39.1   0.95 mean   qi       </code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -3377,7 +3379,7 @@ font-style: inherit;"># median and 80% percentile interval</span></span></code><
 <pre><code># A tibble: 1 × 6
   beta0 .lower .upper .width .point .interval
   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;  &lt;chr&gt;    
-1  32.2   27.5   36.7    0.8 median qi       </code></pre>
+1  32.1   27.8   36.5    0.8 median qi       </code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -3401,8 +3403,8 @@ font-style: inherit;"># mode, with 95 and 50% HPDI's</span></span></code></pre><
 <pre><code># A tibble: 2 × 6
   beta0 .lower .upper .width .point .interval
   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;  &lt;chr&gt;    
-1  32.2   29.7   34.5   0.5  mode   hdi      
-2  32.2   25.0   39.0   0.95 mode   hdi      </code></pre>
+1  31.8   29.7   34.1   0.5  mode   hdi      
+2  31.8   25.1   38.7   0.95 mode   hdi      </code></pre>
 </div>
 </div>
 <p>As an aside, the <code>Mode()</code> function we used a while back was also from <strong>tidybayes</strong>.</p>
@@ -3457,12 +3459,12 @@ font-style: inherit;">head</span>()</span></code></pre></div></div>
 <pre><code># A tibble: 6 × 5
   .draw beta0   beta1 body_mass_g y_hat
   &lt;int&gt; &lt;dbl&gt;   &lt;dbl&gt;       &lt;dbl&gt; &lt;dbl&gt;
-1     1  31.9 0.00457       3733.  48.9
-2     2  32.8 0.00433       3733.  49.0
-3     3  33.1 0.00434       3733.  49.3
-4     4  26.1 0.00601       3733.  48.6
-5     5  39.0 0.00265       3733.  48.9
-6     6  29.5 0.00524       3733.  49.0</code></pre>
+1     1  29.2 0.00497       3733.  47.8
+2     2  30.2 0.00500       3733.  48.9
+3     3  35.9 0.00356       3733.  49.2
+4     4  30.2 0.00508       3733.  49.2
+5     5  26.4 0.00611       3733.  49.2
+6     6  28.9 0.00542       3733.  49.2</code></pre>
 </div>
 </div>
 <p>One way we might emphasize the 4,000 equations is with a spaghetti plot. When we display the fitted line for <code>bill_length_mm</code> over the range of <code>body_mass_g</code> values, we can display a single line for each posterior draw. Here’s what that can look like.</p>
@@ -3886,8 +3888,8 @@ make: *** [C:/PROGRA~1/R/R-43~1.3/etc/x64/Makeconf:265: foo.o] Error 1</code></p
 <pre><code>
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 1).
 Chain 1: 
-Chain 1: Gradient evaluation took 3e-05 seconds
-Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.3 seconds.
+Chain 1: Gradient evaluation took 6.2e-05 seconds
+Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.62 seconds.
 Chain 1: Adjust your expectations accordingly!
 Chain 1: 
 Chain 1: 
@@ -3904,9 +3906,9 @@ Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 1: 
-Chain 1:  Elapsed Time: 0.067 seconds (Warm-up)
-Chain 1:                0.04 seconds (Sampling)
-Chain 1:                0.107 seconds (Total)
+Chain 1:  Elapsed Time: 0.098 seconds (Warm-up)
+Chain 1:                0.082 seconds (Sampling)
+Chain 1:                0.18 seconds (Total)
 Chain 1: 
 
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 2).
@@ -3929,9 +3931,9 @@ Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 2: 
-Chain 2:  Elapsed Time: 0.064 seconds (Warm-up)
-Chain 2:                0.042 seconds (Sampling)
-Chain 2:                0.106 seconds (Total)
+Chain 2:  Elapsed Time: 0.111 seconds (Warm-up)
+Chain 2:                0.078 seconds (Sampling)
+Chain 2:                0.189 seconds (Total)
 Chain 2: 
 
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 3).
@@ -3954,15 +3956,15 @@ Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 3: 
-Chain 3:  Elapsed Time: 0.078 seconds (Warm-up)
-Chain 3:                0.039 seconds (Sampling)
-Chain 3:                0.117 seconds (Total)
+Chain 3:  Elapsed Time: 0.14 seconds (Warm-up)
+Chain 3:                0.035 seconds (Sampling)
+Chain 3:                0.175 seconds (Total)
 Chain 3: 
 
 SAMPLING FOR MODEL 'anon_model' NOW (CHAIN 4).
 Chain 4: 
-Chain 4: Gradient evaluation took 5e-06 seconds
-Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.05 seconds.
+Chain 4: Gradient evaluation took 4e-06 seconds
+Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.04 seconds.
 Chain 4: Adjust your expectations accordingly!
 Chain 4: 
 Chain 4: 
@@ -3979,9 +3981,9 @@ Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 4: 
-Chain 4:  Elapsed Time: 0.054 seconds (Warm-up)
-Chain 4:                0.04 seconds (Sampling)
-Chain 4:                0.094 seconds (Total)
+Chain 4:  Elapsed Time: 0.104 seconds (Warm-up)
+Chain 4:                0.067 seconds (Sampling)
+Chain 4:                0.171 seconds (Total)
 Chain 4: </code></pre>
 </div>
 <details class="code-fold">
