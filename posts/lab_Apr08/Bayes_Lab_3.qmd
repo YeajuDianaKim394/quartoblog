@@ -897,7 +897,150 @@ In the previous lab, you made a subset of the `penguins` data called `gentoo`, w
 
 ```{r}
 # Enter your code here
+gentoo <- penguins %>% 
+  filter(species == "Gentoo")
+gentoo %>% 
+  pivot_longer(cols = c(body_mass_g, bill_length_mm)) %>% 
+  group_by(name) %>% 
+  summarise(mean = mean(value, na.rm=TRUE),
+            sd = sd(value, na.rm=TRUE),
+            n_missing = sum(is.na(value))) 
+gentoo <- gentoo %>% 
+  drop_na(body_mass_g, bill_length_mm)
 
+fit1.b.g <- brm(
+  data = gentoo,
+  bill_length_mm ~ 1 + body_mass_g
+)
+summary(fit1.b.g)
+
+mu <- mean(gentoo$bill_length_mm)
+sigma <- sd(gentoo$bill_length_mm)
+
+gentoo %>% 
+  ggplot(aes(x = bill_length_mm)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 binwidth = 2.5) +
+  geom_line(data = tibble(bill_length_mm = seq(from = 30, to = 70, by = 0.1)),
+            aes(y = dnorm(x = bill_length_mm, mean = mu, sd = sigma)),
+            color = "red")
+
+posterior_summary(fit1.b.g)
+b0    <- posterior_summary(fit1.b.g)[1, 1]
+b1    <- posterior_summary(fit1.b.g)[2, 1]
+sigma <- posterior_summary(fit1.b.g)[3, 1]
+
+crossing(body_mass_g    = seq(from = min(gentoo$body_mass_g), to = max(gentoo$body_mass_g), length.out = 200),
+         bill_length_mm = seq(from = min(gentoo$bill_length_mm), to = max(gentoo$bill_length_mm), length.out = 200))  %>% 
+  mutate(density = dnorm(x = bill_length_mm, 
+                         mean = b0 + b1 * body_mass_g,
+                         sd = sigma)) %>% 
+  
+  ggplot(aes(x = body_mass_g, y = bill_length_mm)) +
+  geom_raster(aes(fill = density),
+              interpolate = TRUE) +
+  geom_point(data = gentoo,
+             shape = 21, color = "white", fill = "black", stroke = 1/4) +
+  scale_fill_viridis_c(option = "A", begin = .15, limits = c(0, NA)) +
+  coord_cartesian(xlim = range(gentoo$body_mass_g),
+                  ylim = range(gentoo$bill_length_mm))
+
+as_draws_df(fit1.b.g) %>% 
+  rename(`beta[0]` = b_Intercept,
+         `beta[1]` = b_body_mass_g) %>% 
+  pivot_longer(cols = c(`beta[0]`, `beta[1]`, sigma), 
+               names_to = "parameter") %>% 
+  
+  ggplot(aes(x = value)) +
+  stat_histinterval(.width = .95, normalize = "panels") +
+  scale_y_continuous(NULL, breaks = NULL) +
+  labs(title = "fit1.b.g",
+       x = "parameter space") +
+  facet_wrap(~ parameter, scales = "free", labeller = label_parsed)
+
+conditional_effects(fit1.b.g) %>% 
+  plot(points = TRUE)
+
+nd <- tibble(body_mass_g = seq(
+  from = min(gentoo$body_mass_g),
+  to = max(gentoo$body_mass_g),
+  length.out = 100))
+
+fitted(fit1.b.g, 
+       newdata = nd,
+       probs = c(.025, .975, .25, .75)) %>% 
+  data.frame() %>% 
+  bind_cols(nd) %>% 
+  ggplot(aes(x = body_mass_g)) +
+  # 95% range
+  geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
+              alpha = 1/4) +
+  # 50% range
+  geom_ribbon(aes(ymin = Q25, ymax = Q75),
+              alpha = 1/4) +
+  geom_line(aes(y = Estimate)) +
+  geom_point(data = gentoo,
+             aes(y = bill_length_mm))
+
+fitted(fit1.b.g, 
+       newdata = nd,
+       summary = F) %>% 
+  data.frame() %>% 
+  set_names(pull(nd, body_mass_g)) %>% 
+  mutate(draw = 1:n()) %>% 
+  pivot_longer(-draw) %>% 
+  mutate(body_mass_g = as.double(name)) %>%
+  
+  ggplot(aes(x = body_mass_g, y = value, fill = after_stat(.width))) +
+  stat_lineribbon(.width = ppoints(50)) +
+  scale_fill_distiller(limits = 0:1) +
+  coord_cartesian(ylim = range(gentoo$bill_length_mm)) +
+  theme_classic()
+
+predict(fit1.b.g, newdata = nd) %>% 
+  data.frame() %>% 
+  bind_cols(nd) %>% 
+  ggplot(aes(x = body_mass_g)) +
+  geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5),
+              alpha = 1/3) +
+  geom_line(aes(y = Estimate)) +
+  # add the data
+  geom_point(data = gentoo,
+             aes(y = bill_length_mm)) +
+  coord_cartesian(ylim = range(gentoo$bill_length_mm))
+
+set.seed(1)
+
+predict(fit1.b.g, summary = FALSE, ndraws = 6) %>% 
+  data.frame() %>% 
+  mutate(draw = 1:n()) %>% 
+  pivot_longer(-draw) %>% 
+  mutate(row = str_remove(name, "X") %>% as.double()) %>% 
+  left_join(chinstrap %>% 
+              mutate(row = 1:n()),
+            by = join_by(row)) %>% 
+  
+  ggplot(aes(x = body_mass_g, y = value)) + 
+  geom_point() +
+  ylab("bill_length_mm") +
+  facet_wrap(~ draw, labeller = label_both)
+
+as_draws_df(fit1.b.g) %>% 
+  rename(beta0 = b_Intercept,
+         beta1 = b_body_mass_g) %>% 
+  select(.draw, beta0, beta1, sigma) %>% 
+  slice_sample(n = 50) %>%  
+  expand_grid(gentoo %>% select(body_mass_g)) %>% 
+  mutate(bill_length_mm = rnorm(n = n(),
+                                mean = beta0 + beta1 * body_mass_g,
+                                sd = sigma)) %>% 
+  
+  ggplot(aes(x = bill_length_mm, group = .draw)) + 
+  geom_density(size = 1/4, color = alpha("black", 1/2)) +
+  coord_cartesian(xlim = range(gentoo$bill_length_mm) + c(-2, 2))
+
+pp_check(fit1.b.g, ndraws = 100)
+pp_check(fit1.b.g, type = "stat", stat = "mean")
 ```
 
 ## References
