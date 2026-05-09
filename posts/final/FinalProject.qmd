@@ -59,7 +59,7 @@ There are 48 dyads in total, each belongs to either the 'stranger' or 'friend' g
 
 ## Exploratory Data Analysis (EDA)
 
-Let's take a quick look at our data here. We're using `ggside:::geom_xsidehistogram` and `ggside:::geom_ysidehistogram` to add marginal histograms to a scatter plot. We can see that the similarity rating distributes from 3 to 7.
+Before fitting the Bayesian model, we first inspect the relationship between neural alignment and perceived similarity. The marginal histograms show the distribution of each variable separately. Perceived similarity scores range from approximately 3 to 7, while standardized neural alignment values range from about -2 to 2.
 
 ```{r}
 df %>% 
@@ -90,14 +90,14 @@ There are no missing values for either `r2_vox_z` or `mean_similarity_comp`. The
 
 ## Warm up: Ordinary Least Squares (OLS) regression
 
-Before diving into Bayesian modeling, let’s warm up with the familiar `lm()` function. This gives us a useful baseline and reminds us of the basic regression setup: we are predicting perceived similarity, `mean_similarity_comp`, from standardized neural alignment, `r2_vox_z`.
+Before diving into Bayesian modeling, let’s warm up with the familiar `lm()` function. This gives us a useful baseline and reminds us of the key variables. We are predicting perceived similarity, `mean_similarity_comp`, from standardized neural alignment, `r2_vox_z`.
 
 ```{r}
 fit_ols <- lm(data = df, mean_similarity_comp ~ r2_vox_z)
 summary(fit_ols)
 ```
 
-The OLS model gives us our first hint that something is going on: `r2_vox_z` has a positive slope, and the association is statistically significant under the usual frequentist framework. Nice!
+The OLS model gives us our first hint that something is going on. `r2_vox_z` has a positive slope, and the association is statistically significant under the usual frequentist framework. Nice!
 
 We can also visualize the fitted OLS regression line and its 95% confidence interval.
 
@@ -147,11 +147,11 @@ These defaults are usable, but for this tutorial we will specify our own weakly 
 
 As I just said, we can also set our own priors. For this model, I use weakly informative priors because I do not want to assume a strong relationship between neural alignment and perceived similarity before seeing the data.
 
-Since `mean_similarity_comp` is measured on a 1–7 scale, I set the intercept prior to be centered around 4.5. I use a skeptical prior centered at 0 for the slope. Finally, I use a lognormal prior for `sigma`, the residual standard deviation, because `sigma` must be positive.
+I set the intercept prior to be centered around 5. I use a skeptical prior centered at 0 for the slope. Finally, I use a lognormal prior for `sigma`, the residual standard deviation, because `sigma` must be positive.
 
 ```{r}
 my_priors <- c(
-  prior(normal(4.5, 1.5), class = "Intercept"),
+  prior(normal(5, 1.5), class = "Intercept"),
   prior(normal(0, 0.5), class = "b"),
   prior(lognormal(0, 0.5), class = "sigma")
 )
@@ -338,7 +338,7 @@ This gives results very similar to `summary(fit_brm_1)`, but here we are computi
 
 # Model comparison
 
-## Adding Group as a Predictor
+## Adding an Interaction to the model
 
 So far, we have fit a simple model predicting perceived similarity from neural alignment. This model treats all dyads as coming from one pooled group. However, our data include both friend dyads and stranger dyads. This matters because friends may generally report higher similarity than strangers, regardless of their neural alignment.
 
@@ -365,7 +365,11 @@ The interaction term asks whether the slope of `r2_vox_z` differs between friend
 summary(fit_brm_2)
 ```
 
-After adding the interaction between neural alignment and dyad group, the model suggested a clear group difference but weak evidence for different slopes by group. - Friend dyads showed an estimated positive slope for `r2_vox_z` of 0.22, but the 95% credible interval ranged from -0.03 to 0.47. - Stranger dyads were estimated to report similarity scores 1.51 points lower than friend dyads when neural alignment was average. - The interaction term was -0.22, with a 95% credible interval from -0.55 to 0.12, suggesting that the data do not provide strong evidence that the effect differs between friend and stranger dyads.
+After adding the interaction between neural alignment and dyad group, the model suggested a clear group difference but weak evidence for different slopes by group.
+
+-   Friend dyads showed an estimated positive slope for `r2_vox_z` of 0.22, but the 95% credible interval ranged from -0.03 to 0.47.
+-   Stranger dyads were estimated to report similarity scores 1.51 points lower than friend dyads when neural alignment was average.
+-   The interaction term was -0.22, with a 95% credible interval from -0.55 to 0.12, suggesting that the data do not provide strong evidence that the effect differs between friend and stranger dyads.
 
 ```{r}
 draws2 <- as_draws_df(fit_brm_2)
@@ -385,7 +389,7 @@ draws2 %>%
   )
 ```
 
-The interaction model suggests that the neural alignment slope may be more positive for friend dyads than for stranger dyads. Because both intervals include 0, the model does not provide strong evidence that neural alignment clearly predicts perceived similarity within either group.
+The interaction model suggests that the neural alignment slope may be more positive for friend dyads than for stranger dyads. Because both intervals include 0, the model no longer provides strong evidence that neural alignment clearly predicts perceived similarity within either group.
 
 ## Leave-One-Out Cross Validation (LOO-CV)
 
