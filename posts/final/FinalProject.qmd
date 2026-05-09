@@ -17,469 +17,388 @@ execute:
 engine: knitr
 ---
 
-## Instructions
+# Intro
 
-Here we are going to \~.
+In this tutorial, I walk through a basic Bayesian linear regression model using the **brms** package in R. This tutorial assumes that readers are already familiar with ordinary least squares regression using `lm()` and have some basic familiarity with Bayesian modeling concepts, such as priors, likelihoods, and posterior distributions. The goal is to show how to fit, check, and interpret a Bayesian linear regression model in R using **brms**.
 
 ## Setup
 
 ```{r}
 #| code-fold: false
-library(tidyverse)
-library(ggside)
-library(brms)
-library(broom)
-library(broom.mixed)
-library(ggdist)
-library(tidybayes)
+library(tidyverse)  # data wrangling and plotting
+library(ggside)     # extends ggplot with marginal histograms
+library(brms)       # our main package for Bayesian regression modeling!
+library(tidybayes)  # visualizing posterior uncertainty
 ```
 
-# Part 1: EDA, OLS, BRMS
+# Data and Variables
 
-## Loading data
+In this tutorial, we will use **brms** to investigate whether neural alignment during conversation predicts perceived similarity after the conversation. The dataset includes dyads who were either friends or strangers.
 
-First we load our data.
+Neural alignment is measured using reconstruction (R\^2) values, stored in the variable `r2_vox`. The outcome variable is the dyadic average of perceived similarity, stored as `mean_similarity_comp`.
+
+## Load data
+
+First, we load and wrangle the data. We standardize `r2_vox` using a z-score transformation so that the regression coefficient can be interpreted as the expected change in perceived similarity for a 1-sd increase in neural alignment. We then create `df`, the main dataframe for this tutorial, which contains the standardized predictor `r2_vox_z` and the outcome variable `mean_similarity_comp`.
 
 ```{r}
-# load data
-data(penguins, package = "palmerpenguins")
+SRM_df <- read.csv("dyadsrm_metrics_glasser_generate.csv") %>% 
+  dplyr::select(dyad, group, r2_vox)
 
-# Any type of looking at data is a part of EDA
-glimpse(penguins)
-head(penguins)
+behav_df <- read.csv("behav_measures.csv") %>%
+  dplyr::select(dyad, group, mean_similarity_comp)
+
+df <- SRM_df %>%
+  inner_join(behav_df, by = c("dyad", "group")) %>%
+  mutate(r2_vox_z = as.numeric(scale(r2_vox)))
+
+glimpse(df)
 ```
 
-Preprocess data.
+There are 48 dyads in total, each belongs to either the 'stranger' or 'friend' group. For now, we will ignore group membership and fit a simple Bayesian linear regression model using only neural alignment as a predictor of perceived similarity. Later, we will return to the `group` variable and examine whether accounting for group status changes the results.
+
+## Exploratory Data Analysis (EDA)
+
+Let's take a quick look at our data here. We're using `ggside:::geom_xsidehistogram` and `ggside:::geom_ysidehistogram` to add marginal histograms to a scatter plot. We can see that the similarity rating distributes from 3 to 7.
 
 ```{r}
-chinstrap <- penguins %>% 
-  filter(species == "Chinstrap")
-
-glimpse(chinstrap)
-```
-
-Now the data have \~ rows and \~.
-
-## More Exploratory data analysis (EDA)
-
-Our focal variables will be `body_mass_g` and `bill_length_mm`. Here they are in a scatter plot.
-
-```{r}
-chinstrap %>% 
-  ggplot(aes(x = body_mass_g, y = bill_length_mm)) +
-  geom_point() +
-  stat_smooth(method = "lm", formula = 'y ~ x', se = FALSE)
-```
-
-We can augment the plot with some nice functions from the **ggside** package.
-
-```{r}
-chinstrap %>% 
-  ggplot(aes(x = body_mass_g, y = bill_length_mm)) +
+df %>% 
+  ggplot(aes(x = r2_vox_z, y = mean_similarity_comp)) +
   geom_point() +
   stat_smooth(method = "lm", formula = 'y ~ x', se = FALSE) +
-  # from ggside
-  geom_xsidehistogram(bins = 30) +
-  geom_ysidehistogram(bins = 30) +
+  geom_xsidehistogram(bins = 15) +
+  geom_ysidehistogram(bins = 15) +
   scale_xsidey_continuous(breaks = NULL) +
   scale_ysidex_continuous(breaks = NULL) +
   theme(ggside.panel.scale = 0.25)
 ```
 
-It's a good idea to get a sense of the sample statistics. Here are the means and SD's for the two variables.
+The plot suggests a positive (but noisy) association between neural alignment and perceived similarity! Dyads with higher `r2_vox_z` tend to report higher similarity. We will quantify this association more formally using Bayesian linear regression below.
+
+Next, we compute basic descriptive statistics and check whether either variable contains missing values.
 
 ```{r}
-chinstrap %>% 
-  summarise(body_mass_g_mean = mean(body_mass_g),
-            body_mass_g_sd = sd(body_mass_g),
-            bill_length_mm_mean = mean(bill_length_mm),
-            bill_length_mm_sd = sd(bill_length_mm)) 
-```
-
-And you know that more efficient way to compute sample statistics for multiple variables is to first convert the data into the long format with `pivot_longer()`. Then you use a `group_by()` line before the main event in `summarise()`.
-
-```{r}
-chinstrap %>% 
-  pivot_longer(cols = c(body_mass_g, bill_length_mm)) %>% 
+df %>% 
+  pivot_longer(cols = c(r2_vox_z, mean_similarity_comp)) %>% 
   group_by(name) %>% 
   summarise(mean = mean(value),
             sd = sd(value),
-            # count the missing data (if any)
             n_missing = sum(is.na(value))) 
 ```
 
-## OLS
+There are no missing values for either `r2_vox_z` or `mean_similarity_comp`. The mean perceived similarity score is approximately 5.01, with a standard deviation of about 1.06. The standardized neural alignment variable has a mean close to 0 and a standard deviation close to 1.
 
-We'll fit the model using brm(). We can also fit the model with the base **R** `lm()` function, which uses the OLS algorithm.
+## Warm up: Ordinary Least Squares (OLS) regression
+
+Before diving into Bayesian modeling, let’s warm up with the familiar `lm()` function. This gives us a useful baseline and reminds us of the basic regression setup: we are predicting perceived similarity, `mean_similarity_comp`, from standardized neural alignment, `r2_vox_z`.
 
 ```{r}
-# fit
-fit1.ols <- lm(
-  data = chinstrap,
-  bill_length_mm ~ 1 + body_mass_g
-)
-
-# summarize the results
-summary(fit1.ols)
-
-coef(fit1.ols)
-predict(fit1.ols)
-predict(fit1.ols,
-        interval = "confidence") %>% 
-  # just the top 6
-  head()
-
-predict(fit1.ols,
-        se.fit = TRUE) %>% 
-  data.frame()
-
-nd <- tibble(body_mass_g = seq(from = min(chinstrap$body_mass_g),
-                               to = max(chinstrap$body_mass_g),
-                               length.out = 50))
-
-glimpse(nd)
-
-predict(fit1.ols,
-        interval = "confidence",
-        newdata = nd) %>% 
-  # just the top 6
-  head()
+fit_ols <- lm(data = df, mean_similarity_comp ~ r2_vox_z)
+summary(fit_ols)
 ```
 
-Now we wrangle those predictions a bit and pump the results right into `ggplot()`.
+The OLS model gives us our first hint that something is going on: `r2_vox_z` has a positive slope, and the association is statistically significant under the usual frequentist framework. Nice!
+
+We can also visualize the fitted OLS regression line and its 95% confidence interval.
 
 ```{r}
-predict(fit1.ols,
+nd <- tibble(r2_vox_z = seq(from = min(df$r2_vox_z),
+                            to = max(df$r2_vox_z),
+                            length.out = 50))
+
+predict(fit_ols,
         interval = "confidence",
         newdata = nd) %>% 
   data.frame() %>% 
   bind_cols(nd) %>% 
-  
-  ggplot(aes(x = body_mass_g)) +
-  # 95% confidence interval ribbon
-  geom_ribbon(aes(ymin = lwr, ymax = upr),
-              alpha = 1/3) +
-  # point estimate line
+  ggplot(aes(x = r2_vox_z)) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 1/3) +
   geom_line(aes(y = fit)) +
-  geom_point(data = chinstrap,
-             aes(y = bill_length_mm))
-
-residuals(fit1.ols)
-
-# put them in a tibble
-tibble(r = residuals(fit1.ols)) %>% 
-  # plot!
-  ggplot(aes(x = r)) +
-  geom_histogram(binwidth = 1)
+  geom_point(data = df,
+             aes(y = mean_similarity_comp))
 ```
 
-## Bayes with default settings
+# Bayesian Linear Regression
 
-We'll be fitting our Bayesian models with the **brms** package. The primary function is `brm()`.
+Now we finally move on to Bayesian modeling. As noted earlier, we will use the **brms** package. The main function, `brm()`, works somewhat like `lm()` in that we still use familiar formula syntax: `mean_similarity_comp ~ r2_vox_z`. The difference is that Bayesian modeling also requires us to think about the likelihood, priors, MCMC settings, and posterior uncertainty. That may sound like a lot, but don't worry too much. For now, we'll start only with priors.
 
-`brm()` can work a lot like the OLS-based `lm()` function. For example, here's how to fit a Bayesian version of our OLS model `fit1.ols`.
+## Default Priors
 
-```{r fit1.b, results = "hide"}
-fit1.b <- brm(
-  data = chinstrap,
-  bill_length_mm ~ 1 + body_mass_g
+If you are not sure what priors to use, **brms** provides default priors. We can inspect them using `brms::get_prior()`.
+
+```{r}
+get_prior(data = df, 
+          mean_similarity_comp ~ r2_vox_z,
+          family = gaussian()
+          )
+```
+
+The output tells us which parameters need priors in this model. For this simple Bayesian linear regression, the main parameters are:
+
+-   the intercept
+-   the slope for `r2_vox_z`
+-   `sigma`, the residual standard deviation
+
+The default prior for the slope of `r2_vox_z` is listed as `flat`. This means that `brms` is not putting much prior information on the slope by default. The intercept gets a Student-t prior centered around 5, which makes sense because the outcome variable `mean_similarity_comp` is centered near 5. The residual standard deviation, `sigma`, also gets a Student-t prior with a lower bound of 0, because standard deviations cannot be negative.
+
+These defaults are usable, but for this tutorial we will specify our own weakly informative priors so that the assumptions of the model are more explicit.
+
+## Set Priors
+
+As I just said, we can also set our own priors. For this model, I use weakly informative priors because I do not want to assume a strong relationship between neural alignment and perceived similarity before seeing the data.
+
+Since `mean_similarity_comp` is measured on a 1–7 scale, I set the intercept prior to be centered around 4.5. I use a skeptical prior centered at 0 for the slope. Finally, I use a lognormal prior for `sigma`, the residual standard deviation, because `sigma` must be positive.
+
+```{r}
+my_priors <- c(
+  prior(normal(4.5, 1.5), class = "Intercept"),
+  prior(normal(0, 0.5), class = "b"),
+  prior(lognormal(0, 0.5), class = "sigma")
 )
 ```
 
-Summarize the model.
+Before fitting the model to the actual outcome data, we first run a prior-only model. Setting `sample_prior = "only"` tells `brms` to simulate data from the priors without updating them with the observed outcome. This is useful for checking whether our priors imply plausible values of perceived similarity.
 
-```{r}
-summary(fit1.b)
+```{r fit_brm_prior, results = "hide"}
+fit_brm_prior <- brm(
+  data = df,
+  mean_similarity_comp ~ r2_vox_z,
+  family = gaussian(),
+  prior = my_priors,
+  iter = 2000, 
+  chains = 4, 
+  seed = 20,
+  sample_prior = "only"
+)
 ```
 
-We can get a quick and dirty plot of the fitted line with the `conditional_effects()` function.
+After fitting the prior-only model, we can check which priors were used:
 
 ```{r}
-conditional_effects(fit1.b) %>% 
+prior_summary(fit_brm_prior)
+```
+
+The `prior_summary()` output confirms that the model is using the priors we specified.
+
+## Prior predictive check
+
+Before fitting the model to the observed data, we run a prior predictive check. This shows what kinds of outcome values the model can generate using only the priors, before learning from the data.
+
+This is not meant to perfectly match the observed data. Instead, we are checking whether the priors generate values that are at least plausible for `mean_similarity_comp`. Here we use `brms::pp_check()`
+
+```{r}
+pp_check(fit_brm_prior, ndraws=50)
+```
+
+Well it doesn't look very good and the predictives are generally too broad, but it's at least not absurdly weird. Most simulated datasets generate similarity scores in or near the observed range, although some prior predictions extend beyond the 1–7 scale.
+
+## Fit Bayes model with priors
+
+Now that the priors are set, we can fit the main Bayesian regression model. This model uses the observed data to update the priors and produce posterior distributions for the intercept, slope, and residual standard deviation.
+
+Here, we set `sample_prior = TRUE`, which saves prior draws along with the posterior draws. This can be useful if we later want to compare prior and posterior distributions.
+
+```{r fit_brm_1, results = "hide"}
+fit_brm_1 <- brm(
+  data = df,
+  mean_similarity_comp ~ r2_vox_z,
+  family = gaussian(),
+  prior = my_priors,
+  iter = 2000, 
+  chains = 4, 
+  seed = 20,
+  sample_prior = TRUE
+)
+```
+
+## Markov Chain Monte Carlo (MCMC) diagnostics
+
+Before interpreting the model results, we should check whether the MCMC sampler behaved well. The `brms::plot()` function gives us two useful diagnostics for each parameter: a posterior distribution plot on the left and a trace plot on the right.
+
+```{r}
+plot(fit_brm_1, widths = 2:3)
+```
+
+For the trace plots on the right side, we want the chains to look like fuzzy caterpillars. In other words, the chains should mix together without obvious trends or drifting over time. Here, the chains look well mixed for the intercept, slope, and `sigma`, which suggests that the sampler did not have obvious convergence problems.
+
+## Model results
+
+Now results! We can use `summary()` to inspect the posterior estimates for the model parameters. By default, `brms::summary()` reports 95% credible intervals, but we can request other intervals, such as 80%, 90%, or 99%, using the `prob` argument.
+
+```{r}
+summary(fit_brm_1)
+
+# Other examples:
+# summary(fit_brm_1, prob = .80)
+# summary(fit_brm_1, prob = .90)
+```
+
+-   The intercept is about 5.00. This means that when `r2_vox` is at its average value, the expected similarity score is approximately 5.00.
+
+-   The slope for `r2_vox_z` is about 0.38. This means that for every 1 standard deviation increase in `r2_vox`, mean perceived similarity is expected to increase by about 0.38 points.
+
+-   The 95% credible interval for the slope is \[0.09, 0.65\]. This interval does not include 0, suggesting a positive association between neural alignment and perceived similarity in this model.
+
+-   All Rhat values are 1.00, and the effective sample sizes are large. This suggests no obvious convergence problems.
+
+```{r}
+draws <- as_draws_df(fit_brm_1)
+
+mean(draws$b_r2_vox_z > 0)
+```
+
+This gives the posterior probability that the slope is greater than zero. In this case, the result is 0.997, meaning that about 99.7% of the posterior draws for the slope are positive. This is a useful Bayesian summary of the direction of the association. Let me return to `as_draws_df()` in a few code chunks.
+
+## Posterior predictive check
+
+Next, we run a posterior predictive check. This is similar to the prior predictive check, but now the model has been fit to the observed data.
+
+The basic question is:
+
+> If this model were true, would simulated data from the model look similar to the data we actually observed?
+
+```{r}
+pp_check(fit_brm_1, ndraws=50)
+```
+
+The dark line shows the observed distribution of `mean_similarity_comp`, and the light blue lines show simulated datasets from the fitted model. The model does a reasonable job capturing the overall center and spread of the observed similarity scores, although the observed distribution is a bit flatter than many of the simulated distributions.
+
+## Compare with OLS
+
+We can also compute a focused summary of the Bayesian regression coefficients using `brms::fixef()`. By default, `fixef()` reports posterior means. If we set `robust = TRUE`, it reports posterior medians instead.
+
+```{r}
+fixef(fit_brm_1)
+
+# If we want to use median:
+# fixef(fit_brm_1, robust = TRUE)
+```
+
+These estimates look familiar, right? The Bayesian model gives an intercept and slope that are very similar to the OLS estimates. This is expected here because we are fitting a simple Gaussian linear regression with weakly informative priors.
+
+```{r}
+cbind(coef(fit_ols),  
+      sqrt(diag(vcov(fit_ols))),
+      confint(fit_ols)) 
+```
+
+The OLS and Bayesian estimates are close, but the interpretation is different. In the OLS model, the interval is a frequentist confidence interval. In the Bayesian model, the interval is a posterior credible interval.
+
+# Visualization
+
+## Coefficients
+
+Let's get the main regression line plot with `conditional_effects()`. This plots the relationship between `r2_vox_z` and `mean_similarity_comp`, along with uncertainty around the fitted line.
+
+```{r}
+conditional_effects(fit_brm_1) %>% 
   plot(points = TRUE)
 ```
 
-## Coefficients and coefficient plots
+The blue line shows the model’s estimated relationship between neural alignment and perceived similarity, and the gray ribbon shows the uncertainty around that fitted line. The points are the observed data.
 
-We can compute a focused summary of the Bayesian model with the `fixef()` function.
+## Parameter distributions
 
-```{r}
-fixef(fit1.b)
-```
-
-If you would like to use the `tidy()` function with your **brms** models, it will have to be the version of `tidy()` from the **broom.mixed** package.
+One of the nice things about Bayesian modeling is that we can work directly with the full posterior distributions of the model parameters, not just point estimates. We can extract the posterior draws from a fitted model using `brms::as_draws_df()`.
 
 ```{r}
-tidy(fit1.b)
+draws <- as_draws_df(fit_brm_1)
+glimpse(draws)
 ```
 
-Here's how to wrangle and combine these two results into a single data frame. Then we'll make a coefficient plot.
+Notice that this object contains thousands of posterior draws, along with some metadata such as chain number, iteration number, and draw number. The columns beginning with `b_` are the regression coefficients from the model.
 
-```{r, warning = F}
-bind_rows(
-  tidy(fit1.ols, conf.int = TRUE) %>% select(term, estimate, contains("conf")),
-  tidy(fit1.b) %>% select(term, estimate, contains("conf")) %>% filter(term != "sd__Observation")
-) %>% 
-  mutate(method = rep(c("lm()", "brm()"), each = 2)) %>% 
-  
-  ggplot(aes(x = estimate, xmin = conf.low, xmax = conf.high, y = method)) +
-  geom_pointrange() +
-  scale_x_continuous("parameter space", expand = expansion(mult = 0.2)) +
-  scale_y_discrete(expand = expansion(mult = 5)) +
-  facet_wrap(~ term, scales = "free_x")
-```
-
-At a superficial level for simple conventional regression type models, the results from a Bayesian `brm()` model will be very similar to those from an OLS `lm()` model. This will not always be case, and even in this example there are many differences once we look below the surface.
-
-# Part 2: Penguins and their posteriors
-
-## Exploring model results
-
-We can extract the posterior draws from our Bayesian models with the `as_draws_df()` function.
-
-Note the meta data. We can get a sense of the full posterior distributions of the $\beta$ parameters with plots.
+To get a feel for the full posterior distributions of the regression coefficients, we can plot them directly:
 
 ```{r}
-as_draws_df(fit1.b)
-
-# wrangle
-as_draws_df(fit1.b) %>% 
+as_draws_df(fit_brm_1) %>% 
+  as_tibble() %>% 
   pivot_longer(starts_with("b_")) %>% 
-  
-  # plot!
   ggplot(aes(x = value)) + 
-  # geom_density(fill = "grey20") +
   geom_histogram(bins = 40) +
   facet_wrap(~ name, scales = "free")
 ```
 
-We might summarize those posterior distributions with basic descriptive statistics, like their means, SD's, and inner 95-percentile range.
+These histograms show the posterior distributions of the intercept and slope. Most of the slope distribution lies above 0, which matches our earlier conclusion that the association between neural alignment and perceived similarity is likely positive.
+
+We can also summarize these posterior distributions with simple descriptive statistics, such as the posterior mean, posterior standard deviation, and 95% credible interval.
 
 ```{r}
-as_draws_df(fit1.b) %>% 
+as_draws_df(fit_brm_1) %>% 
+  as_tibble() %>%
   pivot_longer(starts_with("b_")) %>% 
   group_by(name) %>% 
   summarise(mean = mean(value),
             sd = sd(value),
-            ll = quantile(value, probs = 0.025),
-            ul = quantile(value, probs = 0.975))
+            lower = quantile(value, probs = 0.025),
+            upper = quantile(value, probs = 0.975))
 ```
 
-Notice how these values match up exactly with those from `fixef()`.
+This gives results very similar to `summary(fit_brm_1)`, but here we are computing them directly from the posterior draws. For the intercept, the posterior mean is about 5.00, with a 95% credible interval from about 4.72 to 5.29. For the slope, the posterior mean is about 0.38, with a 95% credible interval from about 0.09 to 0.65.
+
+# Model comparison
+
+## Adding Group as a Predictor
+
+So far, we have fit a simple model predicting perceived similarity from neural alignment. This model treats all dyads as coming from one pooled group. However, our data include both friend dyads and stranger dyads. This matters because friends may generally report higher similarity than strangers, regardless of their neural alignment.
+
+To account for this, we fit an interaction model with `group` as an additional predictor.
+
+```{r fit_brm_2, results = "hide"}
+fit_brm_2 <- brm(
+  data = df,
+  mean_similarity_comp ~ r2_vox_z * group,
+  family = gaussian(),
+  prior = my_priors,
+  iter = 2000, 
+  chains = 4, 
+  seed = 20,
+  sample_prior = TRUE
+)
+```
+
+The interaction term asks whether the slope of `r2_vox_z` differs between friend and stranger dyads.
+
+## Model results
 
 ```{r}
-fixef(fit1.b)
-plot(fit1.b)
-pairs(fit1.b)
-
-# we can adjust some of the settings with the off_diag_args argument
-pairs(fit1.b, off_diag_args = list(size = 1/4, alpha = 1/4))
+summary(fit_brm_2)
 ```
 
-Notice how the two $\beta$ parameters seem to have a strong negative correlation. We can quantify that correlation with the `vcov()` function.
+After adding the interaction between neural alignment and dyad group, the model suggested a clear group difference but weak evidence for different slopes by group. - Friend dyads showed an estimated positive slope for `r2_vox_z` of 0.22, but the 95% credible interval ranged from -0.03 to 0.47. - Stranger dyads were estimated to report similarity scores 1.51 points lower than friend dyads when neural alignment was average. - The interaction term was -0.22, with a 95% credible interval from -0.55 to 0.12, suggesting that the data do not provide strong evidence that the effect differs between friend and stranger dyads.
 
 ```{r}
-vcov(fit1.b)                      # variance/covariance metric
-vcov(fit1.b, correlation = TRUE)  # correlation metric
+draws2 <- as_draws_df(fit_brm_2)
+
+draws2 %>% 
+  mutate(
+    slope_friend = b_r2_vox_z,
+    slope_stranger = b_r2_vox_z + `b_r2_vox_z:groupstranger`
+  ) %>% 
+  summarise(
+    friend_mean = mean(slope_friend),
+    friend_lower = quantile(slope_friend, 0.025),
+    friend_upper = quantile(slope_friend, 0.975),
+    stranger_mean = mean(slope_stranger),
+    stranger_lower = quantile(slope_stranger, 0.025),
+    stranger_upper = quantile(slope_stranger, 0.975)
+  )
 ```
 
-## Draws
+The interaction model suggests that the neural alignment slope may be more positive for friend dyads than for stranger dyads. Because both intervals include 0, the model does not provide strong evidence that neural alignment clearly predicts perceived similarity within either group.
 
-Let's save the `as_draws_df()` output for our model as an object called `draws`.
+## Leave-One-Out Cross Validation (LOO-CV)
+
+Finally, we compare the original model and the interaction model using leave-one-out cross validation.
 
 ```{r}
-draws <- as_draws_df(fit1.b)
-glimpse(draws)
+fit_brm_1 <- add_criterion(fit_brm_1, "loo")
+fit_brm_2 <- add_criterion(fit_brm_2, "loo")
+
+loo_compare(fit_brm_1, fit_brm_2)
 ```
 
-For each parameter in the model, we have 4,000 draws from the posterior. Let's break the 4000 draws down with our `draws` object.
-
-```{r, warning = F}
-# adjust the parameter names 
-draws <- draws %>% 
-  mutate(beta0 = b_Intercept,
-         beta1 = b_body_mass_g)
-
-# Note: go through this one line at a time
-draws %>% 
-  select(.draw, beta0, beta1) %>% 
-  mutate(body_mass_g = mean(chinstrap$body_mass_g)) %>% 
-  mutate(y_hat = beta0 + beta1 * body_mass_g) %>% 
-  
-  ggplot(aes(x = y_hat)) +
-  geom_histogram(bins = 40) +
-  labs(title = "Bayesians have posterior distributions",
-       x = expression(hat(italic(y))*'|'*italic(x)==3733.1)) +
-  coord_cartesian(xlim = c(47, 51))
-```
-
-Another handy way to present a Bayesian posterior is as a density with a point-interval summary below.
-
-```{r, warning = F}
-draws %>%
-  mutate(body_mass_g = mean(chinstrap$body_mass_g)) %>% 
-  mutate(y_hat = beta0 + beta1 * body_mass_g) %>% 
-  
-  ggplot(aes(x = y_hat)) +
-  stat_halfeye(point_interval = mean_qi, .width = .95) +
-  # scale_y_continuous(NULL, breaks = NULL) +
-  labs(title = "Bayesians have posterior distributions",
-       x = expression(hat(italic(y))*'|'*italic(x)==3733.1)) +
-  coord_cartesian(xlim = c(47, 51))
-```
-
-The dot at the base of the plot is the posterior mean, and the horizontal line marks the 95% percentile-based interval. If you'd like to mark the median instead, set `point_interval = median_qi`. If you're like a different kind of horizontal interval, adjust the `.width` argument.
-
-```{r, warning = F}
-draws %>% 
-  mutate(body_mass_g = mean(chinstrap$body_mass_g)) %>% 
-  mutate(y_hat = beta0 + beta1 * body_mass_g) %>% 
-  
-  ggplot(aes(x = y_hat)) +
-  # note the changes to this line
-  stat_halfeye(point_interval = median_qi, .width = c(.5, .99)) +
-  scale_y_continuous(NULL, breaks = NULL) +
-  labs(title = "Bayesians have posterior distributions",
-       subtitle = "The dot marks the median.\nThe thicker line marks the 50% interval, and\nthe thinner line marks the 99% interval.",
-       x = expression(hat(italic(y))*'|'*italic(x)==3733.1)) +
-  coord_cartesian(xlim = c(47, 51))
-```
-
-## About those means, SD's, and intervals.
-
-You can describe a Bayesian posterior in a lot of different ways. Earlier we said the posterior mean is the Bayesian point estimate. This isn't strictly true. Means are very popular, but you can summarize a posterior by its mean, median, or mode.
-
-Let's see what this looks like in practice. First, we compute and save our statistics for each of our model parameters.
-
-```{r, warning = F}
-points <- draws %>% 
-  rename(`beta[0]` = beta0,
-         `beta[1]` = beta1) %>% 
-  pivot_longer(cols = c(`beta[0]`, `beta[1]`, sigma), 
-               names_to = "parameter") %>% 
-  group_by(parameter) %>% 
-  summarise(mean = mean(value),
-            median = median(value),
-            mode = Mode(value)) %>% 
-  pivot_longer(starts_with("m"), names_to = "statistic")
-
-# what?
-points
-```
-
-Now plot.
-
-```{r, warning = F}
-draws %>% 
-  rename(`beta[0]` = beta0,
-         `beta[1]` = beta1) %>% 
-  pivot_longer(cols = c(`beta[0]`, `beta[1]`, sigma), 
-               names_to = "parameter") %>% 
-  
-  ggplot(aes(x = value)) +
-  geom_density() +
-  geom_vline(data = points,
-             aes(xintercept = value, color = statistic),
-             size = 3/4) +
-  scale_color_viridis_d(option = "A", end = .8) +
-  scale_y_continuous(NULL, breaks = NULL) +
-  xlab("parameter space") +
-  facet_wrap(~ parameter, labeller = label_parsed, scales = "free", ncol = 1) +
-  theme(strip.text = element_text(size = 14))
-```
-
--   The mean is the **brms** default summary, and McElreath (2015, 2020) defaulted to the mean in his texts.
--   The median is also available for many **brms** functions, and it's what Gelman et al (2020) recommend.
--   The mode can be attractive for very skewed distributions, and it's what Kruschke (2015) used in his text.
-
-With many **brms** functions, you can request the median by setting `robust = TRUE`. For example:
-
-```{r}
-fixef(fit1.b)                 # means
-fixef(fit1.b, robust = TRUE)  # medians
-```
-
-#### Bayesian intervals.
-
-Bayesians describe the widths of their posteriors with intervals. I've seen these variously described as confidence intervals, credible intervals, probability intervals, and even uncertainty intervals. My recommendation is just pick a term, and clearly tell your audience what you mean (e.g., at the end of a Method section in a journal article).
-
-Also, Bayesian intervals aren't always percentile based. An alternative is the highest posterior density interval (HPDI), which has mathematical properties some find desirable.
-
-**brms** only supports percentile-based intervals, but it does allow for a variety of different ranges via the `prob` argument. For example, here's how to request 80% intervals in `summary()`.
-
-```{r}
-summary(fit1.b, prob = .80)
-```
-
-Regarding interval widths:
-
--   95% Intervals are widely used.
--   McElreat likes 89% intervals, and uses them as a default in his **rethinking** package.
--   Some of the **bayesplot**, **ggdist**, and **tidybayes** functions return 80% intervals.
--   Some of the **ggdist**, and **tidybayes** functions return 66% or 50% intervals.
--   I've heard Gelman report his fondness for 50% intervals on his blog (https://statmodeling.stat.columbia.edu/2016/11/05/why-i-prefer-50-to-95-intervals/).
-
-Regarding interval types:
-
--   Percentile-based intervals are widely used in the Stan ecosystem, and are supported in texts like Gelman et al.
--   Kruschke has consistently advocates for HPDI's in his articles, and in his text.
-
-### Posterior summaries with **tidybayes**.
-
-Matthew Kay's **tidybayes** package (https://mjskay.github.io/tidybayes/) offers an array of convenience functions for summarizing posterior distributions with points and intervals. See the *Point summaries and intervals* section of Kay's *Extracting and visualizing tidy draws from brms models* vignette (https://mjskay.github.io/tidybayes/articles/tidy-brms.html#point-summaries-and-intervals) for a detailed breakdown. In short, the family of functions use the naming scheme `[median|mean|mode]_[qi|hdi]`. Here are a few examples.
-
-```{r}
-draws %>% mean_qi(beta0)                        # mean and 95% percentile interval
-draws %>% median_qi(beta0, .width = .80)        # median and 80% percentile interval
-draws %>% mode_hdi(beta0, .width = c(.5, .95))  # mode, with 95 and 50% HPDI's
-```
-
-### Spaghetti plots.
-
-Remember how we said the `draw` was something like 4,000 separate equations for our Bayesian model? Let's see that again.
-
-```{r}
-draws %>% 
-  select(.draw, beta0, beta1) %>% 
-  mutate(body_mass_g = mean(chinstrap$body_mass_g)) %>% 
-  # here's the equation
-  mutate(y_hat = beta0 + beta1 * body_mass_g) %>% 
-  # subset the top 6
-  head()
-```
-
-One way we might emphasize the 4,000 equations is with a spaghetti plot. When we display the fitted line for `bill_length_mm` over the range of `body_mass_g` values, we can display a single line for each posterior draw. Here's what that can look like.
-
-```{r, warning = F}
-range(chinstrap$body_mass_g)
-
-# Note: go through this one line at a time
-draws %>% 
-  select(.draw, beta0, beta1) %>% 
-  expand_grid(body_mass_g = range(chinstrap$body_mass_g)) %>% 
-  mutate(y_hat = beta0 + beta1 * body_mass_g) %>% 
-  
-  # plot!
-  ggplot(aes(x = body_mass_g, y = y_hat, group = .draw)) +
-  geom_line(linewidth = 1/10, alpha = 1/10)
-```
-
-While we're at it, let's take 20 draws and do a little color coding.
-
-```{r, warning = F}
-set.seed(20)
-
-draws %>% 
-  # take a random sample of 20 rows
-  slice_sample(n = 20) %>% 
-  select(.draw, beta0, beta1) %>% 
-  expand_grid(body_mass_g = range(chinstrap$body_mass_g)) %>% 
-  mutate(y_hat = beta0 + beta1 * body_mass_g) %>% 
-  
-  ggplot(aes(x = body_mass_g, y = y_hat, group = .draw, color = beta0)) +
-  geom_line() +
-  scale_color_viridis_c(expression(beta[0]~(the~intercept)), end = .9)
-```
+The LOO-CV results favor the interaction model. Including dyad group substantially improves prediction of perceived similarity. This improvement seems to come mainly from the friend vs. stranger difference.
 
 ## Session information
 
