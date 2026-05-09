@@ -261,8 +261,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="load-data">Load data</h2>
 <p>First, we load and wrangle the data. We standardize <code>r2_vox</code> using a z-score transformation so that the regression coefficient can be interpreted as the expected change in perceived similarity for a 1-sd increase in neural alignment. We then create <code>df</code>, the main dataframe for this tutorial, which contains the standardized predictor <code>r2_vox_z</code> and the outcome variable <code>mean_similarity_comp</code>.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>SRM_df <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"dyadsrm_metrics_glasser_generate.csv"</span>) <span class="sc">%&gt;%</span> </span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(dyad, group, r2_vox)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -274,7 +272,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">r2_vox_z =</span> <span class="fu">as.numeric</span>(<span class="fu">scale</span>(r2_vox)))</span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
 Columns: 5
@@ -291,8 +288,6 @@ $ r2_vox_z             &lt;dbl&gt; -1.7554784, -2.1265395, -0.9130995, -0.377336
 <h2 class="anchored" data-anchor-id="exploratory-data-analysis-eda">Exploratory Data Analysis (EDA)</h2>
 <p>Before fitting the Bayesian model, we first inspect the relationship between neural alignment and perceived similarity. The marginal histograms show the distribution of each variable separately. Perceived similarity scores range from approximately 3 to 7, while standardized neural alignment values range from about -2 to 2.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df <span class="sc">%&gt;%</span> </span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> r2_vox_z, <span class="at">y =</span> mean_similarity_comp)) <span class="sc">+</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>() <span class="sc">+</span></span>
@@ -302,7 +297,6 @@ $ r2_vox_z             &lt;dbl&gt; -1.7554784, -2.1265395, -0.9130995, -0.377336
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_xsidey_continuous</span>(<span class="at">breaks =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_ysidex_continuous</span>(<span class="at">breaks =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">ggside.panel.scale =</span> <span class="fl">0.25</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -314,15 +308,12 @@ $ r2_vox_z             &lt;dbl&gt; -1.7554784, -2.1265395, -0.9130995, -0.377336
 <p>The plot suggests a positive (but noisy) association between neural alignment and perceived similarity! Dyads with higher <code>r2_vox_z</code> tend to report higher similarity. We will quantify this association more formally using Bayesian linear regression below.</p>
 <p>Next, we compute basic descriptive statistics and check whether either variable contains missing values.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df <span class="sc">%&gt;%</span> </span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(r2_vox_z, mean_similarity_comp)) <span class="sc">%&gt;%</span> </span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name) <span class="sc">%&gt;%</span> </span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean =</span> <span class="fu">mean</span>(value),</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">sd =</span> <span class="fu">sd</span>(value),</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">n_missing =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(value))) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 × 4
   name                      mean    sd n_missing
@@ -337,11 +328,8 @@ $ r2_vox_z             &lt;dbl&gt; -1.7554784, -2.1265395, -0.9130995, -0.377336
 <h2 class="anchored" data-anchor-id="warm-up-ordinary-least-squares-ols-regression">Warm up: Ordinary Least Squares (OLS) regression</h2>
 <p>Before diving into Bayesian modeling, let’s warm up with the familiar <code>lm()</code> function. This gives us a useful baseline and reminds us of the key variables. We are predicting perceived similarity, <code>mean_similarity_comp</code>, from standardized neural alignment, <code>r2_vox_z</code>.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit_ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="at">data =</span> df, mean_similarity_comp <span class="sc">~</span> r2_vox_z)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_ols)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 Call:
@@ -366,8 +354,6 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <p>The OLS model gives us our first hint that something is going on. <code>r2_vox_z</code> has a positive slope, and the association is statistically significant under the usual frequentist framework. Nice!</p>
 <p>We can also visualize the fitted OLS regression line and its 95% confidence interval.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>nd <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">r2_vox_z =</span> <span class="fu">seq</span>(<span class="at">from =</span> <span class="fu">min</span>(df<span class="sc">$</span>r2_vox_z),</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>                            <span class="at">to =</span> <span class="fu">max</span>(df<span class="sc">$</span>r2_vox_z),</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>                            <span class="at">length.out =</span> <span class="dv">50</span>))</span>
@@ -382,7 +368,6 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> fit)) <span class="sc">+</span></span>
 <span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data =</span> df,</span>
 <span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>             <span class="fu">aes</span>(<span class="at">y =</span> mean_similarity_comp))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -400,13 +385,10 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <h2 class="anchored" data-anchor-id="default-priors">Default Priors</h2>
 <p>If you are not sure what priors to use, <strong>brms</strong> provides default priors. We can inspect them using <code>brms::get_prior()</code>.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">get_prior</span>(<span class="at">data =</span> df, </span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>          mean_similarity_comp <span class="sc">~</span> r2_vox_z,</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> <span class="fu">gaussian</span>()</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>          )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>                prior     class     coef group resp dpar nlpar lb ub
                (flat)         b                                     
@@ -434,19 +416,14 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <p>As I just said, we can also set our own priors. For this model, I use weakly informative priors because I do not want to assume a strong relationship between neural alignment and perceived similarity before seeing the data.</p>
 <p>I set the intercept prior to be centered around 5. I use a skeptical prior centered at 0 for the slope. Finally, I use a lognormal prior for <code>sigma</code>, the residual standard deviation, because <code>sigma</code> must be positive.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>my_priors <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">5</span>, <span class="fl">1.5</span>), <span class="at">class =</span> <span class="st">"Intercept"</span>),</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="fl">0.5</span>), <span class="at">class =</span> <span class="st">"b"</span>),</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">prior</span>(<span class="fu">lognormal</span>(<span class="dv">0</span>, <span class="fl">0.5</span>), <span class="at">class =</span> <span class="st">"sigma"</span>)</span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
 <p>Before fitting the model to the actual outcome data, we first run a prior-only model. Setting <code>sample_prior = "only"</code> tells <code>brms</code> to simulate data from the priors without updating them with the observed outcome. This is useful for checking whether our priors imply plausible values of perceived similarity.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>fit_brm_prior <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  mean_similarity_comp <span class="sc">~</span> r2_vox_z,</span>
@@ -457,14 +434,10 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">20</span>,</span>
 <span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">sample_prior =</span> <span class="st">"only"</span></span>
 <span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
 <p>After fitting the prior-only model, we can check which priors were used:</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">prior_summary</span>(fit_brm_prior)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>             prior     class     coef group resp dpar nlpar lb ub       source
     normal(0, 0.5)         b                                              user
@@ -480,10 +453,7 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <p>Before fitting the model to the observed data, we run a prior predictive check. This shows what kinds of outcome values the model can generate using only the priors, before learning from the data.</p>
 <p>This is not meant to perfectly match the observed data. Instead, we are checking whether the priors generate values that are at least plausible for <code>mean_similarity_comp</code>. Here we use <code>brms::pp_check()</code></p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">pp_check</span>(fit_brm_prior, <span class="at">ndraws=</span><span class="dv">50</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -499,8 +469,6 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <p>Now that the priors are set, we can fit the main Bayesian regression model. This model uses the observed data to update the priors and produce posterior distributions for the intercept, slope, and residual standard deviation.</p>
 <p>Here, we set <code>sample_prior = TRUE</code>, which saves prior draws along with the posterior draws. This can be useful if we later want to compare prior and posterior distributions.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit_brm_1 <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  mean_similarity_comp <span class="sc">~</span> r2_vox_z,</span>
@@ -511,17 +479,13 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">20</span>,</span>
 <span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">sample_prior =</span> <span class="cn">TRUE</span></span>
 <span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
 </section>
 <section id="markov-chain-monte-carlo-mcmc-diagnostics" class="level2">
 <h2 class="anchored" data-anchor-id="markov-chain-monte-carlo-mcmc-diagnostics">Markov Chain Monte Carlo (MCMC) diagnostics</h2>
 <p>Before interpreting the model results, we should check whether the MCMC sampler behaved well. The <code>brms::plot()</code> function gives us two useful diagnostics for each parameter: a posterior distribution plot on the left and a trace plot on the right.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit_brm_1, <span class="at">widths =</span> <span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -536,10 +500,7 @@ F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
 <h2 class="anchored" data-anchor-id="model-results">Model results</h2>
 <p>Now results! We can use <code>summary()</code> to inspect the posterior estimates for the model parameters. By default, <code>brms::summary()</code> reports 95% credible intervals, but we can request other intervals, such as 80%, 90%, or 99%, using the <code>prob</code> argument.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_brm_1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code> Family: gaussian 
   Links: mu = identity; sigma = identity 
@@ -561,12 +522,9 @@ Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 and Tail_ESS are effective sample size measures, and Rhat is the potential
 scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 </div>
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Other examples:</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co"># summary(fit_brm_1, prob = .80)</span></span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co"># summary(fit_brm_1, prob = .90)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
 <ul>
 <li><p>The intercept is about 5.00. This means that when <code>r2_vox</code> is at its average value, the expected similarity score is approximately 5.00.</p></li>
@@ -575,12 +533,9 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <li><p>All Rhat values are 1.00, and the effective sample sizes are large. This suggests no obvious convergence problems.</p></li>
 </ul>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>draws <span class="ot">&lt;-</span> <span class="fu">as_draws_df</span>(fit_brm_1)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(draws<span class="sc">$</span>b_r2_vox_z <span class="sc">&gt;</span> <span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 0.995</code></pre>
 </div>
@@ -595,10 +550,7 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <p>If this model were true, would simulated data from the model look similar to the data we actually observed?</p>
 </blockquote>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">pp_check</span>(fit_brm_1, <span class="at">ndraws=</span><span class="dv">50</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -613,29 +565,20 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <h2 class="anchored" data-anchor-id="compare-with-ols">Compare with OLS</h2>
 <p>We can also compute a focused summary of the Bayesian regression coefficients using <code>brms::fixef()</code>. By default, <code>fixef()</code> reports posterior means. If we set <code>robust = TRUE</code>, it reports posterior medians instead.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fixef</span>(fit_brm_1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>           Estimate Est.Error       Q2.5     Q97.5
 Intercept 5.0054720 0.1447401 4.72147257 5.2894680
 r2_vox_z  0.3764805 0.1417793 0.09548644 0.6579378</code></pre>
 </div>
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># If we want to use median:</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="co"># fixef(fit_brm_1, robust = TRUE)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
 <p>These estimates look familiar, right? The Bayesian model gives an intercept and slope that are very similar to the OLS estimates. This is expected here because we are fitting a simple Gaussian linear regression with weakly informative priors.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(<span class="fu">coef</span>(fit_ols),  </span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>      <span class="fu">sqrt</span>(<span class="fu">diag</span>(<span class="fu">vcov</span>(fit_ols))),</span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>      <span class="fu">confint</span>(fit_ols)) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>                                    2.5 %    97.5 %
 (Intercept) 5.0069444 0.1426401 4.7198249 5.2940640
@@ -651,11 +594,8 @@ r2_vox_z    0.4101539 0.1441495 0.1199959 0.7003118</code></pre>
 <h2 class="anchored" data-anchor-id="coefficients">Coefficients</h2>
 <p>Let’s get the main regression line plot with <code>conditional_effects()</code>. This plots the relationship between <code>r2_vox_z</code> and <code>mean_similarity_comp</code>, along with uncertainty around the fitted line.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">conditional_effects</span>(fit_brm_1) <span class="sc">%&gt;%</span> </span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot</span>(<span class="at">points =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -670,11 +610,8 @@ r2_vox_z    0.4101539 0.1441495 0.1199959 0.7003118</code></pre>
 <h2 class="anchored" data-anchor-id="parameter-distributions">Parameter distributions</h2>
 <p>One of the nice things about Bayesian modeling is that we can work directly with the full posterior distributions of the model parameters, not just point estimates. We can extract the posterior draws from a fitted model using <code>brms::as_draws_df()</code>.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>draws <span class="ot">&lt;-</span> <span class="fu">as_draws_df</span>(fit_brm_1)</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(draws)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 4,000
 Columns: 12
@@ -695,15 +632,12 @@ $ .draw           &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 <p>Notice that this object contains thousands of posterior draws, along with some metadata such as chain number, iteration number, and draw number. The columns beginning with <code>b_</code> are the regression coefficients from the model.</p>
 <p>To get a feel for the full posterior distributions of the regression coefficients, we can plot them directly:</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">as_draws_df</span>(fit_brm_1) <span class="sc">%&gt;%</span> </span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span> </span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">starts_with</span>(<span class="st">"b_"</span>)) <span class="sc">%&gt;%</span> </span>
 <span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> value)) <span class="sc">+</span> </span>
 <span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">40</span>) <span class="sc">+</span></span>
 <span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span> name, <span class="at">scales =</span> <span class="st">"free"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -715,8 +649,6 @@ $ .draw           &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 <p>These histograms show the posterior distributions of the intercept and slope. Most of the slope distribution lies above 0, which matches our earlier conclusion that the association between neural alignment and perceived similarity is likely positive.</p>
 <p>We can also summarize these posterior distributions with simple descriptive statistics, such as the posterior mean, posterior standard deviation, and 95% credible interval.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">as_draws_df</span>(fit_brm_1) <span class="sc">%&gt;%</span> </span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="fu">starts_with</span>(<span class="st">"b_"</span>)) <span class="sc">%&gt;%</span> </span>
@@ -725,7 +657,6 @@ $ .draw           &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 <span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">sd =</span> <span class="fu">sd</span>(value),</span>
 <span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower =</span> <span class="fu">quantile</span>(value, <span class="at">probs =</span> <span class="fl">0.025</span>),</span>
 <span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper =</span> <span class="fu">quantile</span>(value, <span class="at">probs =</span> <span class="fl">0.975</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 × 5
   name         mean    sd  lower upper
@@ -744,8 +675,6 @@ $ .draw           &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 <p>So far, we have fit a simple model predicting perceived similarity from neural alignment. This model treats all dyads as coming from one pooled group. However, our data include both friend dyads and stranger dyads. This matters because friends may generally report higher similarity than strangers, regardless of their neural alignment.</p>
 <p>To account for this, we fit an interaction model with <code>group</code> as an additional predictor.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>fit_brm_2 <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
 <span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  mean_similarity_comp <span class="sc">~</span> r2_vox_z <span class="sc">*</span> group,</span>
@@ -756,17 +685,13 @@ $ .draw           &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 <span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">20</span>,</span>
 <span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">sample_prior =</span> <span class="cn">TRUE</span></span>
 <span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
 <p>The interaction term asks whether the slope of <code>r2_vox_z</code> differs between friend and stranger dyads.</p>
 </section>
 <section id="model-results-1" class="level2">
 <h2 class="anchored" data-anchor-id="model-results-1">Model results</h2>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_brm_2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code> Family: gaussian 
   Links: mu = identity; sigma = identity 
@@ -803,8 +728,6 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <li>The interaction term was -0.22, with a 95% credible interval from -0.55 to 0.12, suggesting that the data do not provide strong evidence that the effect differs between friend and stranger dyads.</li>
 </ul>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>draws2 <span class="ot">&lt;-</span> <span class="fu">as_draws_df</span>(fit_brm_2)</span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>draws2 <span class="sc">%&gt;%</span> </span>
@@ -820,7 +743,6 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">stranger_lower =</span> <span class="fu">quantile</span>(slope_stranger, <span class="fl">0.025</span>),</span>
 <span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">stranger_upper =</span> <span class="fu">quantile</span>(slope_stranger, <span class="fl">0.975</span>)</span>
 <span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1 × 6
   friend_mean friend_lower friend_upper stranger_mean stranger_lower
@@ -835,13 +757,10 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <h2 class="anchored" data-anchor-id="leave-one-out-cross-validation-loo-cv">Leave-One-Out Cross Validation (LOO-CV)</h2>
 <p>Finally, we compare the original model and the interaction model using leave-one-out cross validation.</p>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>fit_brm_1 <span class="ot">&lt;-</span> <span class="fu">add_criterion</span>(fit_brm_1, <span class="st">"loo"</span>)</span>
 <span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>fit_brm_2 <span class="ot">&lt;-</span> <span class="fu">add_criterion</span>(fit_brm_2, <span class="st">"loo"</span>)</span>
 <span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="fu">loo_compare</span>(fit_brm_1, fit_brm_2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>          elpd_diff se_diff
 fit_brm_2   0.0       0.0  
@@ -853,10 +772,7 @@ fit_brm_1 -24.7       3.5  </code></pre>
 <section id="session-information" class="level2">
 <h2 class="anchored" data-anchor-id="session-information">Session information</h2>
 <div class="cell">
-<details class="code-fold">
-<summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 <div class="cell-output cell-output-stdout">
 <pre><code>R version 4.3.3 (2024-02-29 ucrt)
 Platform: x86_64-w64-mingw32/x64 (64-bit)
