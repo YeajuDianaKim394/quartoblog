@@ -10,7 +10,1340 @@
 <atom:link href="https://your-website-url.example.com/index.xml" rel="self" type="application/rss+xml"/>
 <description>A blog built with Quarto</description>
 <generator>quarto-1.8.24</generator>
-<lastBuildDate>Wed, 15 Apr 2026 04:00:00 GMT</lastBuildDate>
+<lastBuildDate>Wed, 06 May 2026 04:00:00 GMT</lastBuildDate>
+<item>
+  <title>Bayes Tutorial</title>
+  <dc:creator>Yeaju Diana Kim</dc:creator>
+  <link>https://your-website-url.example.com/posts/final/FinalProject.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="intro" class="level1">
+<h1>Intro</h1>
+<p>In this tutorial, I walk through a basic Bayesian linear regression model using the <strong>brms</strong> package in R. This tutorial assumes that readers are already familiar with ordinary least squares regression using <code>lm()</code> and have some basic familiarity with Bayesian modeling concepts, such as priors, likelihoods, and posterior distributions. The goal is to show how to fit, check, and interpret a Bayesian linear regression model in R using <strong>brms</strong>.</p>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyverse)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># data wrangling and plotting</span></span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggside)     <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># extends ggplot with marginal histograms</span></span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(brms)       <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># our main package for Bayesian regression modeling!</span></span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidybayes)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># visualizing posterior uncertainty</span></span></code></pre></div></div>
+</div>
+</section>
+</section>
+<section id="data-and-variables" class="level1">
+<h1>Data and Variables</h1>
+<p>In this tutorial, we will use <strong>brms</strong> to investigate whether neural alignment during conversation predicts perceived similarity after the conversation. The dataset includes dyads who were either friends or strangers.</p>
+<p>Neural alignment is measured using reconstruction (R^2) values, stored in the variable <code>r2_vox</code>. The outcome variable is the dyadic average of perceived similarity, stored as <code>mean_similarity_comp</code>.</p>
+<section id="load-data" class="level2">
+<h2 class="anchored" data-anchor-id="load-data">Load data</h2>
+<p>First, we load and wrangle the data. We standardize <code>r2_vox</code> using a z-score transformation so that the regression coefficient can be interpreted as the expected change in perceived similarity for a 1-sd increase in neural alignment. We then create <code>df</code>, the main dataframe for this tutorial, which contains the standardized predictor <code>r2_vox_z</code> and the outcome variable <code>mean_similarity_comp</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">SRM_df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read.csv</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dyadsrm_metrics_glasser_generate.csv"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb2-2">  dplyr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(dyad, group, r2_vox)</span>
+<span id="cb2-3"></span>
+<span id="cb2-4">behav_df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read.csv</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"behav_measures.csv"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-5">  dplyr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(dyad, group, mean_similarity_comp)</span>
+<span id="cb2-6"></span>
+<span id="cb2-7">df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> SRM_df <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">inner_join</span>(behav_df, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">by =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dyad"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"group"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb2-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r2_vox_z =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale</span>(r2_vox)))</span>
+<span id="cb2-10"></span>
+<span id="cb2-11"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glimpse</span>(df)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 48
+Columns: 5
+$ dyad                 &lt;int&gt; 104, 105, 107, 108, 109, 113, 114, 116, 117, 121,…
+$ group                &lt;chr&gt; "stranger", "stranger", "stranger", "stranger", "…
+$ r2_vox               &lt;dbl&gt; 0.09122112, 0.08711615, 0.10054018, 0.10646721, 0…
+$ mean_similarity_comp &lt;dbl&gt; 3.833333, 5.000000, 4.666667, 4.833333, 5.166667,…
+$ r2_vox_z             &lt;dbl&gt; -1.7554784, -2.1265395, -0.9130995, -0.3773362, 1…</code></pre>
+</div>
+</div>
+<p>There are 48 dyads in total, each belongs to either the ‘stranger’ or ‘friend’ group. For now, we will ignore group membership and fit a simple Bayesian linear regression model using only neural alignment as a predictor of perceived similarity. Later, we will return to the <code>group</code> variable and examine whether accounting for group status changes the results.</p>
+</section>
+<section id="exploratory-data-analysis-eda" class="level2">
+<h2 class="anchored" data-anchor-id="exploratory-data-analysis-eda">Exploratory Data Analysis (EDA)</h2>
+<p>Before fitting the Bayesian model, we first inspect the relationship between neural alignment and perceived similarity. The marginal histograms show the distribution of each variable separately. Perceived similarity scores range from approximately 3 to 7, while standardized neural alignment values range from about -2 to 2.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">df <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb4-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> r2_vox_z, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> mean_similarity_comp)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">stat_smooth</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lm"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">formula =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'y ~ x'</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">se =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_xsidehistogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_ysidehistogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_xsidey_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_ysidex_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ggside.panel.scale =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.25</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The plot suggests a positive (but noisy) association between neural alignment and perceived similarity! Dyads with higher <code>r2_vox_z</code> tend to report higher similarity. We will quantify this association more formally using Bayesian linear regression below.</p>
+<p>Next, we compute basic descriptive statistics and check whether either variable contains missing values.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">df <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb5-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pivot_longer</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cols =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(r2_vox_z, mean_similarity_comp)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb5-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">group_by</span>(name) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb5-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(value),</span>
+<span id="cb5-5">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sd</span>(value),</span>
+<span id="cb5-6">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n_missing =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">is.na</span>(value))) </span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 2 × 4
+  name                      mean    sd n_missing
+  &lt;chr&gt;                    &lt;dbl&gt; &lt;dbl&gt;     &lt;int&gt;
+1 mean_similarity_comp  5.01e+ 0  1.06         0
+2 r2_vox_z             -4.59e-18  1            0</code></pre>
+</div>
+</div>
+<p>There are no missing values for either <code>r2_vox_z</code> or <code>mean_similarity_comp</code>. The mean perceived similarity score is approximately 5.01, with a standard deviation of about 1.06. The standardized neural alignment variable has a mean close to 0 and a standard deviation close to 1.</p>
+</section>
+<section id="warm-up-ordinary-least-squares-ols-regression" class="level2">
+<h2 class="anchored" data-anchor-id="warm-up-ordinary-least-squares-ols-regression">Warm up: Ordinary Least Squares (OLS) regression</h2>
+<p>Before diving into Bayesian modeling, let’s warm up with the familiar <code>lm()</code> function. This gives us a useful baseline and reminds us of the key variables. We are predicting perceived similarity, <code>mean_similarity_comp</code>, from standardized neural alignment, <code>r2_vox_z</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">fit_ols <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lm</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df, mean_similarity_comp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> r2_vox_z)</span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit_ols)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = mean_similarity_comp ~ r2_vox_z, data = df)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-2.0953 -0.6419  0.1557  0.8597  1.5061 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)   5.0069     0.1426  35.102   &lt;2e-16 ***
+r2_vox_z      0.4102     0.1441   2.845   0.0066 ** 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.9882 on 46 degrees of freedom
+Multiple R-squared:  0.1497,    Adjusted R-squared:  0.1312 
+F-statistic: 8.096 on 1 and 46 DF,  p-value: 0.006603</code></pre>
+</div>
+</div>
+<p>The OLS model gives us our first hint that something is going on. <code>r2_vox_z</code> has a positive slope, and the association is statistically significant under the usual frequentist framework. Nice!</p>
+<p>We can also visualize the fitted OLS regression line and its 95% confidence interval.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">nd <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">r2_vox_z =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">from =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">min</span>(df<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>r2_vox_z),</span>
+<span id="cb9-2">                            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">to =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(df<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>r2_vox_z),</span>
+<span id="cb9-3">                            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">length.out =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>))</span>
+<span id="cb9-4"></span>
+<span id="cb9-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">predict</span>(fit_ols,</span>
+<span id="cb9-6">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">interval =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"confidence"</span>,</span>
+<span id="cb9-7">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">newdata =</span> nd) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb9-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb9-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bind_cols</span>(nd) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb9-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> r2_vox_z)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb9-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_ribbon</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymin =</span> lwr, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ymax =</span> upr), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">alpha =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb9-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_line</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> fit)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb9-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df,</span>
+<span id="cb9-14">             <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> mean_similarity_comp))</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="bayesian-linear-regression" class="level1">
+<h1>Bayesian Linear Regression</h1>
+<p>Now we finally move on to Bayesian modeling. As noted earlier, we will use the <strong>brms</strong> package. The main function, <code>brm()</code>, works somewhat like <code>lm()</code> in that we still use familiar formula syntax: <code>mean_similarity_comp ~ r2_vox_z</code>. The difference is that Bayesian modeling also requires us to think about the likelihood, priors, MCMC settings, and posterior uncertainty. That may sound like a lot, but don’t worry too much. For now, we’ll start only with priors.</p>
+<section id="default-priors" class="level2">
+<h2 class="anchored" data-anchor-id="default-priors">Default Priors</h2>
+<p>If you are not sure what priors to use, <strong>brms</strong> provides default priors. We can inspect them using <code>brms::get_prior()</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">get_prior</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df, </span>
+<span id="cb10-2">          mean_similarity_comp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> r2_vox_z,</span>
+<span id="cb10-3">          <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gaussian</span>()</span>
+<span id="cb10-4">          )</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                prior     class     coef group resp dpar nlpar lb ub
+               (flat)         b                                     
+               (flat)         b r2_vox_z                            
+ student_t(3, 5, 2.5) Intercept                                     
+ student_t(3, 0, 2.5)     sigma                                 0   
+       source
+      default
+ (vectorized)
+      default
+      default</code></pre>
+</div>
+</div>
+<p>The output tells us which parameters need priors in this model. For this simple Bayesian linear regression, the main parameters are:</p>
+<ul>
+<li>the intercept</li>
+<li>the slope for <code>r2_vox_z</code></li>
+<li><code>sigma</code>, the residual standard deviation</li>
+</ul>
+<p>The default prior for the slope of <code>r2_vox_z</code> is listed as <code>flat</code>. This means that <code>brms</code> is not putting much prior information on the slope by default. The intercept gets a Student-t prior centered around 5, which makes sense because the outcome variable <code>mean_similarity_comp</code> is centered near 5. The residual standard deviation, <code>sigma</code>, also gets a Student-t prior with a lower bound of 0, because standard deviations cannot be negative.</p>
+<p>These defaults are usable, but for this tutorial we will specify our own weakly informative priors so that the assumptions of the model are more explicit.</p>
+</section>
+<section id="set-priors" class="level2">
+<h2 class="anchored" data-anchor-id="set-priors">Set Priors</h2>
+<p>As I just said, we can also set our own priors. For this model, I use weakly informative priors because I do not want to assume a strong relationship between neural alignment and perceived similarity before seeing the data.</p>
+<p>I set the intercept prior to be centered around 5. I use a skeptical prior centered at 0 for the slope. Finally, I use a lognormal prior for <code>sigma</code>, the residual standard deviation, because <code>sigma</code> must be positive.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">my_priors <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb12-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">prior</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">normal</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">class =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Intercept"</span>),</span>
+<span id="cb12-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">prior</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">normal</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">class =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"b"</span>),</span>
+<span id="cb12-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">prior</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lognormal</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">class =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"sigma"</span>)</span>
+<span id="cb12-5">)</span></code></pre></div></div>
+</details>
+</div>
+<p>Before fitting the model to the actual outcome data, we first run a prior-only model. Setting <code>sample_prior = "only"</code> tells <code>brms</code> to simulate data from the priors without updating them with the observed outcome. This is useful for checking whether our priors imply plausible values of perceived similarity.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">fit_brm_prior <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">brm</span>(</span>
+<span id="cb13-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df,</span>
+<span id="cb13-3">  mean_similarity_comp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> r2_vox_z,</span>
+<span id="cb13-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gaussian</span>(),</span>
+<span id="cb13-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> my_priors,</span>
+<span id="cb13-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">iter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span>, </span>
+<span id="cb13-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">chains =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, </span>
+<span id="cb13-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>,</span>
+<span id="cb13-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sample_prior =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"only"</span></span>
+<span id="cb13-10">)</span></code></pre></div></div>
+</details>
+</div>
+<p>After fitting the prior-only model, we can check which priors were used:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">prior_summary</span>(fit_brm_prior)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>             prior     class     coef group resp dpar nlpar lb ub       source
+    normal(0, 0.5)         b                                              user
+    normal(0, 0.5)         b r2_vox_z                             (vectorized)
+    normal(5, 1.5) Intercept                                              user
+ lognormal(0, 0.5)     sigma                                 0            user</code></pre>
+</div>
+</div>
+<p>The <code>prior_summary()</code> output confirms that the model is using the priors we specified.</p>
+</section>
+<section id="prior-predictive-check" class="level2">
+<h2 class="anchored" data-anchor-id="prior-predictive-check">Prior predictive check</h2>
+<p>Before fitting the model to the observed data, we run a prior predictive check. This shows what kinds of outcome values the model can generate using only the priors, before learning from the data.</p>
+<p>This is not meant to perfectly match the observed data. Instead, we are checking whether the priors generate values that are at least plausible for <code>mean_similarity_comp</code>. Here we use <code>brms::pp_check()</code></p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pp_check</span>(fit_brm_prior, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ndraws=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Well it doesn’t look very good and the predictives are generally too broad, but it’s at least not absurdly weird. Most simulated datasets generate similarity scores in or near the observed range, although some prior predictions extend beyond the 1–7 scale.</p>
+</section>
+<section id="fit-bayes-model-with-priors" class="level2">
+<h2 class="anchored" data-anchor-id="fit-bayes-model-with-priors">Fit Bayes model with priors</h2>
+<p>Now that the priors are set, we can fit the main Bayesian regression model. This model uses the observed data to update the priors and produce posterior distributions for the intercept, slope, and residual standard deviation.</p>
+<p>Here, we set <code>sample_prior = TRUE</code>, which saves prior draws along with the posterior draws. This can be useful if we later want to compare prior and posterior distributions.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">fit_brm_1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">brm</span>(</span>
+<span id="cb17-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df,</span>
+<span id="cb17-3">  mean_similarity_comp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> r2_vox_z,</span>
+<span id="cb17-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gaussian</span>(),</span>
+<span id="cb17-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> my_priors,</span>
+<span id="cb17-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">iter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span>, </span>
+<span id="cb17-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">chains =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, </span>
+<span id="cb17-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>,</span>
+<span id="cb17-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sample_prior =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span></span>
+<span id="cb17-10">)</span></code></pre></div></div>
+</details>
+</div>
+</section>
+<section id="markov-chain-monte-carlo-mcmc-diagnostics" class="level2">
+<h2 class="anchored" data-anchor-id="markov-chain-monte-carlo-mcmc-diagnostics">Markov Chain Monte Carlo (MCMC) diagnostics</h2>
+<p>Before interpreting the model results, we should check whether the MCMC sampler behaved well. The <code>brms::plot()</code> function gives us two useful diagnostics for each parameter: a posterior distribution plot on the left and a trace plot on the right.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(fit_brm_1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">widths =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>For the trace plots on the right side, we want the chains to look like fuzzy caterpillars. In other words, the chains should mix together without obvious trends or drifting over time. Here, the chains look well mixed for the intercept, slope, and <code>sigma</code>, which suggests that the sampler did not have obvious convergence problems.</p>
+</section>
+<section id="model-results" class="level2">
+<h2 class="anchored" data-anchor-id="model-results">Model results</h2>
+<p>Now results! We can use <code>summary()</code> to inspect the posterior estimates for the model parameters. By default, <code>brms::summary()</code> reports 95% credible intervals, but we can request other intervals, such as 80%, 90%, or 99%, using the <code>prob</code> argument.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit_brm_1)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> Family: gaussian 
+  Links: mu = identity; sigma = identity 
+Formula: mean_similarity_comp ~ r2_vox_z 
+   Data: df (Number of observations: 48) 
+  Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+         total post-warmup draws = 4000
+
+Regression Coefficients:
+          Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+Intercept     5.01      0.14     4.72     5.29 1.00     3466     2961
+r2_vox_z      0.38      0.14     0.10     0.66 1.00     4158     3028
+
+Further Distributional Parameters:
+      Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+sigma     1.00      0.10     0.82     1.23 1.00     3737     3012
+
+Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+and Tail_ESS are effective sample size measures, and Rhat is the potential
+scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Other examples:</span></span>
+<span id="cb21-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># summary(fit_brm_1, prob = .80)</span></span>
+<span id="cb21-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># summary(fit_brm_1, prob = .90)</span></span></code></pre></div></div>
+</details>
+</div>
+<ul>
+<li><p>The intercept is about 5.00. This means that when <code>r2_vox</code> is at its average value, the expected similarity score is approximately 5.00.</p></li>
+<li><p>The slope for <code>r2_vox_z</code> is about 0.38. This means that for every 1 standard deviation increase in <code>r2_vox</code>, mean perceived similarity is expected to increase by about 0.38 points.</p></li>
+<li><p>The 95% credible interval for the slope is [0.09, 0.65]. This interval does not include 0, suggesting a positive association between neural alignment and perceived similarity in this model.</p></li>
+<li><p>All Rhat values are 1.00, and the effective sample sizes are large. This suggests no obvious convergence problems.</p></li>
+</ul>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1">draws <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_brm_1)</span>
+<span id="cb22-2"></span>
+<span id="cb22-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(draws<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>b_r2_vox_z <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.995</code></pre>
+</div>
+</div>
+<p>This gives the posterior probability that the slope is greater than zero. In this case, the result is 0.997, meaning that about 99.7% of the posterior draws for the slope are positive. This is a useful Bayesian summary of the direction of the association. Let me return to <code>as_draws_df()</code> in a few code chunks.</p>
+</section>
+<section id="posterior-predictive-check" class="level2">
+<h2 class="anchored" data-anchor-id="posterior-predictive-check">Posterior predictive check</h2>
+<p>Next, we run a posterior predictive check. This is similar to the prior predictive check, but now the model has been fit to the observed data.</p>
+<p>The basic question is:</p>
+<blockquote class="blockquote">
+<p>If this model were true, would simulated data from the model look similar to the data we actually observed?</p>
+</blockquote>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pp_check</span>(fit_brm_1, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ndraws=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The dark line shows the observed distribution of <code>mean_similarity_comp</code>, and the light blue lines show simulated datasets from the fitted model. The model does a reasonable job capturing the overall center and spread of the observed similarity scores, although the observed distribution is a bit flatter than many of the simulated distributions.</p>
+</section>
+<section id="compare-with-ols" class="level2">
+<h2 class="anchored" data-anchor-id="compare-with-ols">Compare with OLS</h2>
+<p>We can also compute a focused summary of the Bayesian regression coefficients using <code>brms::fixef()</code>. By default, <code>fixef()</code> reports posterior means. If we set <code>robust = TRUE</code>, it reports posterior medians instead.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fixef</span>(fit_brm_1)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>           Estimate Est.Error       Q2.5     Q97.5
+Intercept 5.0054720 0.1447401 4.72147257 5.2894680
+r2_vox_z  0.3764805 0.1417793 0.09548644 0.6579378</code></pre>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># If we want to use median:</span></span>
+<span id="cb27-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># fixef(fit_brm_1, robust = TRUE)</span></span></code></pre></div></div>
+</details>
+</div>
+<p>These estimates look familiar, right? The Bayesian model gives an intercept and slope that are very similar to the OLS estimates. This is expected here because we are fitting a simple Gaussian linear regression with weakly informative priors.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">cbind</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coef</span>(fit_ols),  </span>
+<span id="cb28-2">      <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diag</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">vcov</span>(fit_ols))),</span>
+<span id="cb28-3">      <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">confint</span>(fit_ols)) </span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>                                    2.5 %    97.5 %
+(Intercept) 5.0069444 0.1426401 4.7198249 5.2940640
+r2_vox_z    0.4101539 0.1441495 0.1199959 0.7003118</code></pre>
+</div>
+</div>
+<p>The OLS and Bayesian estimates are close, but the interpretation is different. In the OLS model, the interval is a frequentist confidence interval. In the Bayesian model, the interval is a posterior credible interval.</p>
+</section>
+</section>
+<section id="visualization" class="level1">
+<h1>Visualization</h1>
+<section id="coefficients" class="level2">
+<h2 class="anchored" data-anchor-id="coefficients">Coefficients</h2>
+<p>Let’s get the main regression line plot with <code>conditional_effects()</code>. This plots the relationship between <code>r2_vox_z</code> and <code>mean_similarity_comp</code>, along with uncertainty around the fitted line.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">conditional_effects</span>(fit_brm_1) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb30-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">points =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The blue line shows the model’s estimated relationship between neural alignment and perceived similarity, and the gray ribbon shows the uncertainty around that fitted line. The points are the observed data.</p>
+</section>
+<section id="parameter-distributions" class="level2">
+<h2 class="anchored" data-anchor-id="parameter-distributions">Parameter distributions</h2>
+<p>One of the nice things about Bayesian modeling is that we can work directly with the full posterior distributions of the model parameters, not just point estimates. We can extract the posterior draws from a fitted model using <code>brms::as_draws_df()</code>.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1">draws <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_brm_1)</span>
+<span id="cb31-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glimpse</span>(draws)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 4,000
+Columns: 12
+$ b_Intercept     &lt;dbl&gt; 4.954366, 5.028863, 5.014997, 4.966033, 5.084960, 4.89…
+$ b_r2_vox_z      &lt;dbl&gt; 0.2482303, 0.5310256, 0.3516985, 0.4252662, 0.3887591,…
+$ sigma           &lt;dbl&gt; 1.0226341, 0.9900557, 0.9929083, 0.9935381, 0.9709848,…
+$ Intercept       &lt;dbl&gt; 4.954366, 5.028863, 5.014997, 4.966033, 5.084960, 4.89…
+$ prior_Intercept &lt;dbl&gt; 6.211616, 6.534947, 2.697560, 6.062472, 7.417916, 4.24…
+$ prior_b         &lt;dbl&gt; -0.51645745, 0.57045691, -0.19605796, 0.36136789, 0.22…
+$ prior_sigma     &lt;dbl&gt; 0.7238576, 1.5800676, 0.7102229, 1.0496273, 1.1559378,…
+$ lprior          &lt;dbl&gt; -1.923069, -2.330354, -2.016404, -2.131547, -2.052147,…
+$ lp__            &lt;dbl&gt; -69.21556, -69.24740, -68.65819, -68.73736, -68.76834,…
+$ .chain          &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …
+$ .iteration      &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,…
+$ .draw           &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,…</code></pre>
+</div>
+</div>
+<p>Notice that this object contains thousands of posterior draws, along with some metadata such as chain number, iteration number, and draw number. The columns beginning with <code>b_</code> are the regression coefficients from the model.</p>
+<p>To get a feel for the full posterior distributions of the regression coefficients, we can plot them directly:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_brm_1) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb33-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_tibble</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb33-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pivot_longer</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">starts_with</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"b_"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb33-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> value)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> </span>
+<span id="cb33-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_histogram</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">bins =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">40</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb33-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">facet_wrap</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> name, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">scales =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"free"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://your-website-url.example.com/posts/final/FinalProject_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>These histograms show the posterior distributions of the intercept and slope. Most of the slope distribution lies above 0, which matches our earlier conclusion that the association between neural alignment and perceived similarity is likely positive.</p>
+<p>We can also summarize these posterior distributions with simple descriptive statistics, such as the posterior mean, posterior standard deviation, and 95% credible interval.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_brm_1) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb34-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_tibble</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span></span>
+<span id="cb34-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pivot_longer</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">starts_with</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"b_"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb34-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">group_by</span>(name) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb34-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(value),</span>
+<span id="cb34-6">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sd</span>(value),</span>
+<span id="cb34-7">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(value, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">probs =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.025</span>),</span>
+<span id="cb34-8">            <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">upper =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(value, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">probs =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.975</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 2 × 5
+  name         mean    sd  lower upper
+  &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;
+1 b_Intercept 5.01  0.145 4.72   5.29 
+2 b_r2_vox_z  0.376 0.142 0.0955 0.658</code></pre>
+</div>
+</div>
+<p>This gives results very similar to <code>summary(fit_brm_1)</code>, but here we are computing them directly from the posterior draws. For the intercept, the posterior mean is about 5.00, with a 95% credible interval from about 4.72 to 5.29. For the slope, the posterior mean is about 0.38, with a 95% credible interval from about 0.09 to 0.65.</p>
+</section>
+</section>
+<section id="model-comparison" class="level1">
+<h1>Model comparison</h1>
+<section id="adding-an-interaction-to-the-model" class="level2">
+<h2 class="anchored" data-anchor-id="adding-an-interaction-to-the-model">Adding an Interaction to the model</h2>
+<p>So far, we have fit a simple model predicting perceived similarity from neural alignment. This model treats all dyads as coming from one pooled group. However, our data include both friend dyads and stranger dyads. This matters because friends may generally report higher similarity than strangers, regardless of their neural alignment.</p>
+<p>To account for this, we fit an interaction model with <code>group</code> as an additional predictor.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1">fit_brm_2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">brm</span>(</span>
+<span id="cb36-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df,</span>
+<span id="cb36-3">  mean_similarity_comp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> r2_vox_z <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> group,</span>
+<span id="cb36-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gaussian</span>(),</span>
+<span id="cb36-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">prior =</span> my_priors,</span>
+<span id="cb36-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">iter =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span>, </span>
+<span id="cb36-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">chains =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, </span>
+<span id="cb36-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seed =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>,</span>
+<span id="cb36-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sample_prior =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span></span>
+<span id="cb36-10">)</span></code></pre></div></div>
+</details>
+</div>
+<p>The interaction term asks whether the slope of <code>r2_vox_z</code> differs between friend and stranger dyads.</p>
+</section>
+<section id="model-results-1" class="level2">
+<h2 class="anchored" data-anchor-id="model-results-1">Model results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit_brm_2)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> Family: gaussian 
+  Links: mu = identity; sigma = identity 
+Formula: mean_similarity_comp ~ r2_vox_z * group 
+   Data: df (Number of observations: 48) 
+  Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+         total post-warmup draws = 4000
+
+Regression Coefficients:
+                       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS
+Intercept                  5.69      0.13     5.42     5.94 1.00     3360
+r2_vox_z                   0.22      0.13    -0.04     0.48 1.00     2564
+groupstranger             -1.51      0.19    -1.86    -1.13 1.00     3472
+r2_vox_z:groupstranger    -0.22      0.18    -0.56     0.13 1.00     2846
+                       Tail_ESS
+Intercept                  2703
+r2_vox_z                   2529
+groupstranger              2830
+r2_vox_z:groupstranger     2727
+
+Further Distributional Parameters:
+      Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+sigma     0.60      0.07     0.48     0.75 1.00     3689     2871
+
+Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+and Tail_ESS are effective sample size measures, and Rhat is the potential
+scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+</div>
+</div>
+<p>After adding the interaction between neural alignment and dyad group, the model suggested a clear group difference but weak evidence for different slopes by group.</p>
+<ul>
+<li>Friend dyads showed an estimated positive slope for <code>r2_vox_z</code> of 0.22, but the 95% credible interval ranged from -0.03 to 0.47.</li>
+<li>Stranger dyads were estimated to report similarity scores 1.51 points lower than friend dyads when neural alignment was average.</li>
+<li>The interaction term was -0.22, with a 95% credible interval from -0.55 to 0.12, suggesting that the data do not provide strong evidence that the effect differs between friend and stranger dyads.</li>
+</ul>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1">draws2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as_draws_df</span>(fit_brm_2)</span>
+<span id="cb39-2"></span>
+<span id="cb39-3">draws2 <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb39-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb39-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">slope_friend =</span> b_r2_vox_z,</span>
+<span id="cb39-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">slope_stranger =</span> b_r2_vox_z <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">b_r2_vox_z:groupstranger</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`</span></span>
+<span id="cb39-7">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%&gt;%</span> </span>
+<span id="cb39-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(</span>
+<span id="cb39-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">friend_mean =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(slope_friend),</span>
+<span id="cb39-10">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">friend_lower =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(slope_friend, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.025</span>),</span>
+<span id="cb39-11">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">friend_upper =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(slope_friend, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.975</span>),</span>
+<span id="cb39-12">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">stranger_mean =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(slope_stranger),</span>
+<span id="cb39-13">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">stranger_lower =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(slope_stranger, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.025</span>),</span>
+<span id="cb39-14">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">stranger_upper =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">quantile</span>(slope_stranger, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.975</span>)</span>
+<span id="cb39-15">  )</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 1 × 6
+  friend_mean friend_lower friend_upper stranger_mean stranger_lower
+        &lt;dbl&gt;        &lt;dbl&gt;        &lt;dbl&gt;         &lt;dbl&gt;          &lt;dbl&gt;
+1       0.221      -0.0402        0.483       0.00454         -0.247
+# ℹ 1 more variable: stranger_upper &lt;dbl&gt;</code></pre>
+</div>
+</div>
+<p>The interaction model suggests that the neural alignment slope may be more positive for friend dyads than for stranger dyads. Because both intervals include 0, the model no longer provides strong evidence that neural alignment clearly predicts perceived similarity within either group.</p>
+</section>
+<section id="leave-one-out-cross-validation-loo-cv" class="level2">
+<h2 class="anchored" data-anchor-id="leave-one-out-cross-validation-loo-cv">Leave-One-Out Cross Validation (LOO-CV)</h2>
+<p>Finally, we compare the original model and the interaction model using leave-one-out cross validation.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1">fit_brm_1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_criterion</span>(fit_brm_1, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"loo"</span>)</span>
+<span id="cb41-2">fit_brm_2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_criterion</span>(fit_brm_2, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"loo"</span>)</span>
+<span id="cb41-3"></span>
+<span id="cb41-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">loo_compare</span>(fit_brm_1, fit_brm_2)</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>          elpd_diff se_diff
+fit_brm_2   0.0       0.0  
+fit_brm_1 -24.7       3.5  </code></pre>
+</div>
+</div>
+<p>The LOO-CV results favor the interaction model. Including dyad group substantially improves prediction of perceived similarity. This improvement seems to come mainly from the friend vs.&nbsp;stranger difference.</p>
+</section>
+<section id="session-information" class="level2">
+<h2 class="anchored" data-anchor-id="session-information">Session information</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sessionInfo</span>()</span></code></pre></div></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.3.3 (2024-02-29 ucrt)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 11 x64 (build 26200)
+
+Matrix products: default
+
+
+locale:
+[1] LC_COLLATE=Korean_Korea.utf8  LC_CTYPE=Korean_Korea.utf8   
+[3] LC_MONETARY=Korean_Korea.utf8 LC_NUMERIC=C                 
+[5] LC_TIME=Korean_Korea.utf8    
+
+time zone: America/New_York
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] tidybayes_3.0.7 brms_2.22.0     Rcpp_1.0.14     ggside_0.4.1   
+ [5] lubridate_1.9.4 forcats_1.0.0   stringr_1.6.0   dplyr_1.1.4    
+ [9] purrr_1.0.2     readr_2.1.5     tidyr_1.3.1     tibble_3.2.1   
+[13] ggplot2_4.0.0   tidyverse_2.0.0
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.2.1     svUnit_1.0.8         farver_2.1.1        
+ [4] loo_2.9.0            S7_0.2.0             fastmap_1.2.0       
+ [7] TH.data_1.1-4        tensorA_0.36.2.1     digest_0.6.35       
+[10] estimability_1.5.1   timechange_0.3.0     lifecycle_1.0.5     
+[13] StanHeaders_2.32.10  processx_3.8.6       survival_3.5-8      
+[16] magrittr_2.0.3       posterior_1.6.1      compiler_4.3.3      
+[19] rlang_1.1.5          tools_4.3.3          utf8_1.2.4          
+[22] yaml_2.3.10          knitr_1.50           labeling_0.4.3      
+[25] bridgesampling_1.2-1 htmlwidgets_1.6.4    curl_6.2.2          
+[28] pkgbuild_1.4.8       plyr_1.8.9           RColorBrewer_1.1-3  
+[31] multcomp_1.4-28      abind_1.4-8          withr_3.0.2         
+[34] grid_4.3.3           stats4_4.3.3         colorspace_2.1-0    
+[37] xtable_1.8-4         inline_0.3.21        emmeans_2.0.0       
+[40] scales_1.4.0         MASS_7.3-60.0.1      cli_3.6.4           
+[43] mvtnorm_1.3-3        rmarkdown_2.30       generics_0.1.4      
+[46] RcppParallel_5.1.10  rstudioapi_0.17.1    reshape2_1.4.4      
+[49] tzdb_0.4.0           rstan_2.32.7         splines_4.3.3       
+[52] bayesplot_1.15.0     parallel_4.3.3       matrixStats_1.5.0   
+[55] vctrs_0.6.5          V8_8.0.1             Matrix_1.6-5        
+[58] sandwich_3.1-1       jsonlite_2.0.0       callr_3.7.6         
+[61] hms_1.1.3            arrayhelpers_1.1-0   ggdist_3.3.3        
+[64] glue_1.8.0           ps_1.9.0             codetools_0.2-19    
+[67] distributional_0.6.0 stringi_1.8.7        gtable_0.3.6        
+[70] QuickJSR_1.7.0       pillar_1.11.1        htmltools_0.5.8.1   
+[73] Brobdingnag_1.2-9    R6_2.6.1             evaluate_1.0.5      
+[76] lattice_0.22-5       backports_1.4.1      rstantools_2.6.0    
+[79] coda_0.19-4.1        gridExtra_2.3        nlme_3.1-164        
+[82] checkmate_2.3.2      mgcv_1.9-1           xfun_0.52           
+[85] zoo_1.8-13           pkgconfig_2.0.3     </code></pre>
+</div>
+</div>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <guid>https://your-website-url.example.com/posts/final/FinalProject.html</guid>
+  <pubDate>Wed, 06 May 2026 04:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Lab: Hierarchical Bayesian Models</title>
   <dc:creator>Yeaju Diana Kim</dc:creator>
